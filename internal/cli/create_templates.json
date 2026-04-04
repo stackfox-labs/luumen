@@ -10,9 +10,10 @@
         },
         "commands": {
           "dev": [],
-          "serve": [],
           "build": [],
-          "sourcemap": []
+	      "lint": [],
+	      "format": [],
+	      "test": []
         }
       }
     },
@@ -26,23 +27,23 @@
         },
         "commands": {
           "dev": [
-            "luu sourcemap",
-            "rojo serve default.project.json"
-          ],
-          "serve": [
+          "rojo sourcemap default.project.json --output sourcemap.json",
             "rojo serve default.project.json"
           ],
           "build": [
             "rojo build default.project.json --output build.rbxl"
           ],
-          "sourcemap": [
-            "rojo sourcemap default.project.json --output sourcemap.json"
+        "lint": [
+          "selene src"
+        ],
+        "format": [
+          "stylua src"
+        ],
+        "test": [
+          "lune run test"
           ]
         },
         "tasks": {
-          "lint": [
-            "stylua src"
-          ],
           "check": [
             "selene src"
           ]
@@ -61,7 +62,8 @@
             "rojo = \"rojo-rbx/rojo@7.6.1\"",
             "wally = \"UpliftGames/wally@0.3.2\"",
             "stylua = \"JohnnyMorganz/StyLua@2.4.0\"",
-            "selene = \"Kampfkarren/selene@0.30.1\""
+	        "selene = \"Kampfkarren/selene@0.30.1\"",
+	        "lune = \"lune-org/lune@0.10.4\""
           ]
         },
         {
@@ -140,23 +142,23 @@
         },
         "commands": {
           "dev": [
-            "luu sourcemap",
-            "rojo serve default.project.json"
-          ],
-          "serve": [
+          "rojo sourcemap default.project.json --output sourcemap.json",
             "rojo serve default.project.json"
           ],
           "build": [
             "rojo build default.project.json --output build.rbxl"
           ],
-          "sourcemap": [
-            "rojo sourcemap default.project.json --output sourcemap.json"
+        "lint": [
+          "selene src"
+        ],
+        "format": [
+          "stylua src"
+        ],
+        "test": [
+          "lune run test"
           ]
         },
         "tasks": {
-          "lint": [
-            "stylua src"
-          ],
           "check": [
             "selene src"
           ]
@@ -174,7 +176,8 @@
             "[tools]",
             "rojo = \"rojo-rbx/rojo@7.6.1\"",
             "stylua = \"JohnnyMorganz/StyLua@2.4.0\"",
-            "selene = \"Kampfkarren/selene@0.30.1\""
+	        "selene = \"Kampfkarren/selene@0.30.1\"",
+	        "lune = \"lune-org/lune@0.10.4\""
           ]
         },
         {
@@ -243,14 +246,17 @@
           "dev": [
             "lune run src/http_server.luau"
           ],
-          "serve": [
-            "lune run src/http_server.luau"
-          ],
           "build": [
             "echo No build step configured for lune-http"
           ],
-          "sourcemap": [
-            "echo Sourcemap is not applicable for lune-http"
+        "lint": [
+          "stylua src"
+        ],
+        "format": [
+          "stylua src"
+        ],
+        "test": [
+          "echo No test step configured for lune-http"
           ]
         },
         "tasks": {
@@ -259,9 +265,6 @@
           ],
           "http": [
             "lune run src/http_server.luau"
-          ],
-          "lint": [
-            "stylua src"
           ]
         }
       },
@@ -329,14 +332,17 @@
           "dev": [
             "lute run src/main.luau"
           ],
-          "serve": [
-            "lute run src/main.luau"
-          ],
           "build": [
             "echo No build step configured for lute-guessing"
           ],
-          "sourcemap": [
-            "echo Sourcemap is not applicable for lute-guessing"
+        "lint": [
+          "stylua src tests"
+        ],
+        "format": [
+          "stylua src tests"
+        ],
+        "test": [
+          "echo No test step configured for lute-guessing"
           ]
         },
         "tasks": {
@@ -345,9 +351,6 @@
           ],
           "play-50": [
             "lute run src/main.luau --max 50"
-          ],
-          "lint": [
-            "stylua src tests"
           ],
           "check": [
             "lute check src/main.luau"

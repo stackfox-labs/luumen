@@ -74,6 +74,67 @@ func TestRokitInstallBuildsExpectedCommand(t *testing.T) {
 	}
 }
 
+func TestRokitAddBuildsExpectedCommand(t *testing.T) {
+	t.Parallel()
+
+	runner := &fakeRunner{}
+	rokit := NewRokit(runner, "")
+
+	result, err := rokit.Add(context.Background(), "Kampfkarren/selene", "selene", RunOptions{})
+	if err != nil {
+		t.Fatalf("expected add success, got: %v", err)
+	}
+	if result.ExitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d", result.ExitCode)
+	}
+	if len(runner.calls) != 1 {
+		t.Fatalf("expected one command run, got %d", len(runner.calls))
+	}
+
+	call := runner.calls[0]
+	if call.command.Name != DefaultRokitExecutable {
+		t.Fatalf("expected executable %q, got %q", DefaultRokitExecutable, call.command.Name)
+	}
+	expected := []string{"add", "Kampfkarren/selene", "selene"}
+	if len(call.command.Args) != len(expected) {
+		t.Fatalf("expected args %#v, got %#v", expected, call.command.Args)
+	}
+	for i := range expected {
+		if call.command.Args[i] != expected[i] {
+			t.Fatalf("expected args %#v, got %#v", expected, call.command.Args)
+		}
+	}
+}
+
+func TestRokitAddOmitsAliasWhenEmpty(t *testing.T) {
+	t.Parallel()
+
+	runner := &fakeRunner{}
+	rokit := NewRokit(runner, "")
+
+	result, err := rokit.Add(context.Background(), "Kampfkarren/selene", "", RunOptions{})
+	if err != nil {
+		t.Fatalf("expected add success, got: %v", err)
+	}
+	if result.ExitCode != 0 {
+		t.Fatalf("expected exit code 0, got %d", result.ExitCode)
+	}
+	if len(runner.calls) != 1 {
+		t.Fatalf("expected one command run, got %d", len(runner.calls))
+	}
+
+	call := runner.calls[0]
+	expected := []string{"add", "Kampfkarren/selene"}
+	if len(call.command.Args) != len(expected) {
+		t.Fatalf("expected args %#v, got %#v", expected, call.command.Args)
+	}
+	for i := range expected {
+		if call.command.Args[i] != expected[i] {
+			t.Fatalf("expected args %#v, got %#v", expected, call.command.Args)
+		}
+	}
+}
+
 func TestRokitSyncUsesInstallInvocation(t *testing.T) {
 	t.Parallel()
 

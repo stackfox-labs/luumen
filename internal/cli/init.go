@@ -142,10 +142,11 @@ func newInitCmd(deps initCommandDeps) *cobra.Command {
 					Packages: state.HasWallyConfig,
 				},
 				Commands: map[string]config.TaskValue{
-					"dev":       config.NewTaskValue("luu sourcemap", fmt.Sprintf("rojo serve %s", rojoProjectPath)),
-					"serve":     config.NewTaskValue(fmt.Sprintf("rojo serve %s", rojoProjectPath)),
-					"build":     config.NewTaskValue(fmt.Sprintf("rojo build %s --output build.rbxl", rojoProjectPath)),
-					"sourcemap": config.NewTaskValue(fmt.Sprintf("rojo sourcemap %s --output sourcemap.json", rojoProjectPath)),
+					"dev":    config.NewTaskValue(fmt.Sprintf("rojo sourcemap %s --output sourcemap.json", rojoProjectPath), fmt.Sprintf("rojo serve %s", rojoProjectPath)),
+					"build":  config.NewTaskValue(fmt.Sprintf("rojo build %s --output build.rbxl", rojoProjectPath)),
+					"lint":   config.NewTaskValue("selene src"),
+					"format": config.NewTaskValue("stylua src"),
+					"test":   config.NewTaskValue("lune run test"),
 				},
 			}
 

@@ -1,4 +1,4 @@
-export type TabId = "create" | "install" | "dev" | "add" | "run"
+export type TabId = "create" | "install" | "add" | "dev" | "lint" | "doctor"
 
 export interface OutputLine {
   text: string

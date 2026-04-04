@@ -9,6 +9,7 @@ import (
 
 	"luumen/internal/config"
 	"luumen/internal/tasks"
+	"luumen/internal/tools"
 	"luumen/internal/workspace"
 )
 
@@ -26,7 +27,7 @@ func defaultRunCommandDeps() runCommandDeps {
 	return runCommandDeps{
 		detectWorkspace: workspace.Detect,
 		loadConfig:      config.Load,
-		taskRunner:      tasks.NewEngine(nil, "luu"),
+		taskRunner:      nil,
 	}
 }
 
@@ -37,10 +38,6 @@ func newRunCmd(deps runCommandDeps) *cobra.Command {
 	if deps.loadConfig == nil {
 		deps.loadConfig = config.Load
 	}
-	if deps.taskRunner == nil {
-		deps.taskRunner = tasks.NewEngine(nil, "luu")
-	}
-
 	cmd := &cobra.Command{
 		Use:   "run <task>",
 		Short: "Run a named Luumen task",
@@ -64,10 +61,17 @@ func newRunCmd(deps runCommandDeps) *cobra.Command {
 				return fmt.Errorf("failed to load %s: %w", workspace.LuumenConfigFile, err)
 			}
 
-			if err := deps.taskRunner.RunNamedTask(cmd.Context(), args[0], cfg, tasks.RunOptions{
+			runner := deps.taskRunner
+			if runner == nil {
+				runner = tasks.NewEngine(newSelfHealingShellRunner(cmd, "run", state, tools.NewRokit(nil, "")), "luu")
+			}
+
+			stdout, stderr := commandOutputWriters(cmd)
+
+			if err := runner.RunNamedTask(cmd.Context(), args[0], cfg, tasks.RunOptions{
 				WorkingDir: state.RootPath,
-				Stdout:     cmd.OutOrStdout(),
-				Stderr:     cmd.ErrOrStderr(),
+				Stdout:     stdout,
+				Stderr:     stderr,
 				Stdin:      cmd.InOrStdin(),
 			}); err != nil {
 				if errors.Is(err, tasks.ErrTaskNotFound) {

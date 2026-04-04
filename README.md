@@ -18,7 +18,7 @@ Luumen works with the existing ecosystem:
 
 * **Rokit** for tool installation and management
 * **Wally** for package dependencies
-* **Rojo** for serving, builds, and sourcemaps
+* **Rojo**, **Selene**, **StyLua**, **Lune**, and other tools for project workflows
 
 It does not replace those tools.
 
@@ -30,9 +30,10 @@ luu init
 luu install
 luu add
 luu dev
-luu serve
 luu build
-luu sourcemap
+luu lint
+luu format
+luu test
 luu run <task>
 luu doctor
 ```

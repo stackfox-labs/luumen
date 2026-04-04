@@ -50,8 +50,9 @@ func newInstallCmd(deps installCommandDeps) *cobra.Command {
 	var noPackages bool
 
 	cmd := &cobra.Command{
-		Use:   "install",
-		Short: "Install repo tools and packages",
+		Use:     "install",
+		Aliases: []string{"i"},
+		Short:   "Install repo tools and packages",
 		Long: "Install orchestrates Rokit tools and Wally packages based on workspace files. " +
 			"By default it installs both when configuration files exist.",
 		Example: "luu install\n" +

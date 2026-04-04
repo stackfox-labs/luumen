@@ -38,7 +38,7 @@ function IconAdd({ active }: { active: boolean }) {
   )
 }
 
-function IconRun({ active }: { active: boolean }) {
+function IconLint({ active }: { active: boolean }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 1.75 : 1.5} strokeLinecap="round" strokeLinejoin="round">
       <path d="M13 2L4.5 13.5H12L11 22l8.5-11.5H13L13 2z" />
@@ -46,10 +46,20 @@ function IconRun({ active }: { active: boolean }) {
   )
 }
 
+function IconDoctor({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 1.75 : 1.5} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3l7 3v5c0 5-3.5 8.5-7 10-3.5-1.5-7-5-7-10V6l7-3z" />
+      <path d="M12 8v6M9 11h6" />
+    </svg>
+  )
+}
+
 export const TAB_ICONS: Record<TabId, ({ active }: { active: boolean }) => ReactElement> = {
   create: IconCreate,
   install: IconInstall,
-  dev: IconDev,
   add: IconAdd,
-  run: IconRun,
+  dev: IconDev,
+  lint: IconLint,
+  doctor: IconDoctor,
 }

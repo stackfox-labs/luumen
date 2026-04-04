@@ -83,10 +83,11 @@ func TestInitAdoptionRokitWallyRojo(t *testing.T) {
 		t.Fatalf("expected both install categories true, got %+v", writer.cfg.Install)
 	}
 
-	assertCommand(t, writer.cfg, "serve", []string{"rojo serve default.project.json"})
+	assertCommand(t, writer.cfg, "dev", []string{"rojo sourcemap default.project.json --output sourcemap.json", "rojo serve default.project.json"})
 	assertCommand(t, writer.cfg, "build", []string{"rojo build default.project.json --output build.rbxl"})
-	assertCommand(t, writer.cfg, "sourcemap", []string{"rojo sourcemap default.project.json --output sourcemap.json"})
-	assertCommand(t, writer.cfg, "dev", []string{"luu sourcemap", "rojo serve default.project.json"})
+	assertCommand(t, writer.cfg, "lint", []string{"selene src"})
+	assertCommand(t, writer.cfg, "format", []string{"stylua src"})
+	assertCommand(t, writer.cfg, "test", []string{"lune run test"})
 }
 
 func TestInitAdoptionPartialSetup(t *testing.T) {
@@ -118,7 +119,7 @@ func TestInitAdoptionPartialSetup(t *testing.T) {
 	if !writer.cfg.Install.Tools || writer.cfg.Install.Packages {
 		t.Fatalf("expected tools-only install settings, got %+v", writer.cfg.Install)
 	}
-	assertCommand(t, writer.cfg, "serve", []string{"rojo serve games/default.project.json"})
+	assertCommand(t, writer.cfg, "dev", []string{"rojo sourcemap games/default.project.json --output sourcemap.json", "rojo serve games/default.project.json"})
 }
 
 func TestInitRefusesExistingLuumenConfig(t *testing.T) {

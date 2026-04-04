@@ -12,7 +12,7 @@ func TestResolveToolPrefix(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected tool prefix resolution success, got: %v", err)
 	}
-	if resolved.Kind != DependencyKindTool || resolved.Value != "rojo-rbx/rojo@7.6.1" {
+	if resolved.Kind != DependencyKindTool || resolved.Value != "rojo-rbx/rojo" {
 		t.Fatalf("unexpected tool resolution: %+v", resolved)
 	}
 }
@@ -44,12 +44,12 @@ func TestResolveKnownAlias(t *testing.T) {
 func TestResolveUnknownToolWithoutVersion(t *testing.T) {
 	t.Parallel()
 
-	_, err := Resolve("tool:my-org/my-tool")
-	if err == nil {
-		t.Fatal("expected invalid dependency input for missing tool version")
+	resolved, err := Resolve("tool:my-org/my-tool")
+	if err != nil {
+		t.Fatalf("expected tool resolution success without explicit version, got: %v", err)
 	}
-	if !errors.Is(err, ErrInvalidDependencyInput) {
-		t.Fatalf("expected ErrInvalidDependencyInput, got: %v", err)
+	if resolved.Kind != DependencyKindTool || resolved.Value != "my-org/my-tool" {
+		t.Fatalf("unexpected tool resolution: %+v", resolved)
 	}
 }
 

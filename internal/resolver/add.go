@@ -24,6 +24,9 @@ var toolAliases = map[string]string{
 	"wally":  "UpliftGames/wally@0.3.2",
 	"stylua": "JohnnyMorganz/StyLua@2.4.0",
 	"selene": "Kampfkarren/selene@0.30.1",
+	"lune":   "lune-org/lune@0.10.4",
+	"lute":   "luau-lang/lute@0.1.0-nightly.20260327",
+	"luau":   "luau-lang/luau@0.680.0",
 }
 
 type Resolution struct {
@@ -117,11 +120,19 @@ func normalizeToolRef(value string) (string, error) {
 		return trimmed, nil
 	}
 
+	if looksLikeToolReference(trimmed) {
+		return trimmed, nil
+	}
+
 	if known, ok := knownToolWithDefaultVersion(trimmed); ok {
 		return known, nil
 	}
 
-	return "", fmt.Errorf("%w: tool references must include an exact version (tool:<owner/repo>@x.y.z), or use a known alias like rojo", ErrInvalidDependencyInput)
+	return "", fmt.Errorf("%w: tool references must use tool:<owner/repo> or tool:<owner/repo>@x.y.z, or use a known alias like rojo", ErrInvalidDependencyInput)
+}
+
+func looksLikeToolReference(value string) bool {
+	return looksLikePackageReference(value)
 }
 
 func knownToolWithDefaultVersion(value string) (string, bool) {

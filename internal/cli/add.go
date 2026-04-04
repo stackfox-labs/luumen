@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -21,6 +22,10 @@ type addCommandDeps struct {
 	resolve         func(input string) (resolver.Resolution, error)
 	rokitInstaller  rokitInstaller
 	wallyInstaller  wallyInstaller
+}
+
+type rokitAddRunner interface {
+	Add(ctx context.Context, tool string, alias string, options tools.RunOptions) (process.Result, error)
 }
 
 func defaultAddCommandDeps() addCommandDeps {
@@ -82,20 +87,31 @@ func newAddCmd(deps addCommandDeps) *cobra.Command {
 				if !state.HasRokitConfig {
 					return fmt.Errorf("cannot add tool: %s is missing from %s. Next: add rokit.toml or run luu init in an adoptable repository", workspace.RokitConfigFile, state.RootPath)
 				}
-				statusf(cmd, "Updating %s with tool %s", workspace.RokitConfigFile, resolved.Value)
-				if _, err := addToolToRokitConfig(state.RokitConfigPath, resolved.Value); err != nil {
-					return fmt.Errorf("failed to update %s: %w", workspace.RokitConfigFile, err)
+				if rokitConfigDeclaresTool(state.RokitConfigPath, resolved.Value) {
+					statusf(cmd, "Tool already declared in %s", workspace.RokitConfigFile)
+					return nil
 				}
 				if noInstall {
+					statusf(cmd, "Updating %s with tool %s", workspace.RokitConfigFile, resolved.Value)
+					if _, err := addToolToRokitConfig(state.RokitConfigPath, resolved.Value); err != nil {
+						return fmt.Errorf("failed to update %s: %w", workspace.RokitConfigFile, err)
+					}
 					statusf(cmd, "Added tool without install (--no-install)")
 					return nil
 				}
-				statusf(cmd, "Installing tools with Rokit...")
-				if _, err := deps.rokitInstaller.Install(cmd.Context(), defaultToolRunOptions(cmd, state.RootPath)); err != nil {
+
+				addRunner, ok := deps.rokitInstaller.(rokitAddRunner)
+				if !ok {
+					return fmt.Errorf("failed to add tool: Rokit add support is unavailable")
+				}
+
+				toolForAdd, aliasForAdd := rokitAddInvocation(resolved)
+				statusf(cmd, "Running: %s", styleCommand(cmd.OutOrStdout(), rokitAddCommandForDisplay(toolForAdd, aliasForAdd)))
+				if _, err := addRunner.Add(cmd.Context(), toolForAdd, aliasForAdd, defaultToolRunOptions(cmd, state.RootPath)); err != nil {
 					if process.IsKind(err, process.ErrorKindNotFound) {
-						return fmt.Errorf("failed to install added tool: Rokit executable was not found in PATH: %w", err)
+						return fmt.Errorf("failed to add tool: Rokit executable was not found in PATH: %w", err)
 					}
-					return fmt.Errorf("failed to install added tool via Rokit: %w", err)
+					return fmt.Errorf("failed to add tool via Rokit: %w", err)
 				}
 				statusf(cmd, "Tool added and installed successfully")
 				return nil
@@ -137,6 +153,44 @@ func isResolverKind(err error, kind error) bool {
 	return errors.Is(err, kind)
 }
 
+func rokitAddInvocation(resolved resolver.Resolution) (string, string) {
+	tool := strings.TrimSpace(resolved.Value)
+	if resolved.Source == "alias" {
+		tool = canonicalToolBase(tool)
+	}
+
+	alias := strings.TrimSpace(resolved.Alias)
+	if alias == "" {
+		alias = canonicalToolExecutable(tool)
+	}
+	alias = normalizeRokitAlias(tool, alias)
+
+	return tool, alias
+}
+
+func rokitAddCommandForDisplay(tool string, alias string) string {
+	parts := []string{"rokit", "add", strings.TrimSpace(tool)}
+	if trimmedAlias := strings.TrimSpace(alias); trimmedAlias != "" {
+		parts = append(parts, trimmedAlias)
+	}
+
+	return strings.TrimSpace(strings.Join(parts, " "))
+}
+
+func normalizeRokitAlias(toolRef string, alias string) string {
+	trimmedAlias := strings.TrimSpace(alias)
+	if trimmedAlias == "" {
+		return ""
+	}
+
+	defaultAlias := canonicalToolExecutable(toolRef)
+	if defaultAlias != "" && strings.EqualFold(trimmedAlias, defaultAlias) {
+		return ""
+	}
+
+	return trimmedAlias
+}
+
 func addToolToRokitConfig(path string, toolRef string) (bool, error) {
 	doc, err := readTomlDocument(path)
 	if err != nil {
@@ -148,16 +202,28 @@ func addToolToRokitConfig(path string, toolRef string) (bool, error) {
 		return false, err
 	}
 
-	if containsStringValue(toolsTable, toolRef) {
-		return false, writeTomlDocument(path, doc)
-	}
-
-	key := sanitizeKey(lastPathSegment(toolRef))
+	key := sanitizeKey(canonicalToolExecutable(toolRef))
 	if key == "" {
 		key = "tool"
 	}
-	key = nextAvailableKey(toolsTable, key)
-	toolsTable[key] = toolRef
+
+	normalizedRef := strings.TrimSpace(toolRef)
+	if existing, ok := toolsTable[key]; ok {
+		existingRef, ok := existing.(string)
+		if ok && strings.EqualFold(strings.TrimSpace(existingRef), normalizedRef) {
+			return false, writeTomlDocument(path, doc)
+		}
+	}
+
+	legacyKey := findToolKeyByBase(toolsTable, normalizedRef)
+	if legacyKey != "" && legacyKey != key {
+		delete(toolsTable, legacyKey)
+	}
+
+	if _, exists := toolsTable[key]; exists && legacyKey != key {
+		key = nextAvailableKey(toolsTable, key)
+	}
+	toolsTable[key] = normalizedRef
 
 	doc["tools"] = toolsTable
 	if err := writeTomlDocument(path, doc); err != nil {
@@ -165,6 +231,36 @@ func addToolToRokitConfig(path string, toolRef string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func findToolKeyByValue(table map[string]any, value string) string {
+	normalized := strings.TrimSpace(value)
+	for key, current := range table {
+		currentString, ok := current.(string)
+		if !ok {
+			continue
+		}
+		if strings.EqualFold(strings.TrimSpace(currentString), normalized) {
+			return key
+		}
+	}
+
+	return ""
+}
+
+func findToolKeyByBase(table map[string]any, value string) string {
+	base := canonicalToolBase(value)
+	for key, current := range table {
+		currentString, ok := current.(string)
+		if !ok {
+			continue
+		}
+		if canonicalToolBase(currentString) == base {
+			return key
+		}
+	}
+
+	return ""
 }
 
 func addPackageToWallyConfig(path string, pkgRef string) (bool, error) {

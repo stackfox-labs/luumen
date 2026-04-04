@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -15,13 +16,33 @@ import (
 
 type fakeInstaller struct {
 	calls      int
+	addCalls   int
 	lastOption tools.RunOptions
+	lastTool   string
+	lastAlias  string
 	err        error
 }
 
 func (f *fakeInstaller) Install(_ context.Context, options tools.RunOptions) (process.Result, error) {
 	f.calls++
 	f.lastOption = options
+	if f.err != nil {
+		return process.Result{ExitCode: 1}, f.err
+	}
+	return process.Result{ExitCode: 0}, nil
+}
+
+func (f *fakeInstaller) Add(_ context.Context, tool string, alias string, options tools.RunOptions) (process.Result, error) {
+	f.addCalls++
+	f.lastOption = options
+	f.lastTool = tool
+	f.lastAlias = alias
+
+	rokitPath := filepath.Join(options.WorkingDir, workspace.RokitConfigFile)
+	if _, err := addToolToRokitConfig(rokitPath, tool); err != nil {
+		return process.Result{ExitCode: 1}, err
+	}
+
 	if f.err != nil {
 		return process.Result{ExitCode: 1}, f.err
 	}
@@ -230,6 +251,25 @@ func TestInstallHelpIsAvailableFromRoot(t *testing.T) {
 
 	if !strings.Contains(output.String(), "--tools") || !strings.Contains(output.String(), "--packages") {
 		t.Fatalf("expected install help to include flags, got: %q", output.String())
+	}
+}
+
+func TestInstallAliasHelpIsAvailableFromRoot(t *testing.T) {
+	t.Parallel()
+
+	root := NewRootCmd()
+	output := bytes.NewBuffer(nil)
+	root.SetOut(output)
+	root.SetErr(output)
+	root.SetArgs([]string{"i", "--help"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("expected install alias help to render, got: %v", err)
+	}
+
+	text := output.String()
+	if !strings.Contains(text, "Usage:\n  luu install [flags]") || !strings.Contains(text, "Aliases:\n  install, i") {
+		t.Fatalf("expected install alias to resolve to install help, got: %q", text)
 	}
 }
 

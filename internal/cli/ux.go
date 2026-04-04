@@ -5,8 +5,10 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/term"
 
 	"luumen/internal/process"
 	"luumen/internal/tools"
@@ -14,6 +16,9 @@ import (
 
 type quietContextKey struct{}
 type verboseContextKey struct{}
+type yesContextKey struct{}
+type noPromptContextKey struct{}
+type installMissingContextKey struct{}
 
 func withQuietMode(ctx context.Context, quiet bool) context.Context {
 	if ctx == nil {
@@ -27,6 +32,27 @@ func withVerboseMode(ctx context.Context, verbose bool) context.Context {
 		ctx = context.Background()
 	}
 	return context.WithValue(ctx, verboseContextKey{}, verbose)
+}
+
+func withYesMode(ctx context.Context, yes bool) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, yesContextKey{}, yes)
+}
+
+func withNoPromptMode(ctx context.Context, noPrompt bool) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, noPromptContextKey{}, noPrompt)
+}
+
+func withInstallMissingMode(ctx context.Context, installMissing bool) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return context.WithValue(ctx, installMissingContextKey{}, installMissing)
 }
 
 func isQuiet(cmd *cobra.Command) bool {
@@ -45,6 +71,71 @@ func isVerbose(cmd *cobra.Command) bool {
 	value := cmd.Context().Value(verboseContextKey{})
 	verbose, ok := value.(bool)
 	return ok && verbose
+}
+
+func isYes(cmd *cobra.Command) bool {
+	if cmd == nil || cmd.Context() == nil {
+		return false
+	}
+	value := cmd.Context().Value(yesContextKey{})
+	yes, ok := value.(bool)
+	return ok && yes
+}
+
+func isNoPrompt(cmd *cobra.Command) bool {
+	if cmd == nil || cmd.Context() == nil {
+		return false
+	}
+	value := cmd.Context().Value(noPromptContextKey{})
+	noPrompt, ok := value.(bool)
+	return ok && noPrompt
+}
+
+func isInstallMissing(cmd *cobra.Command) bool {
+	if cmd == nil || cmd.Context() == nil {
+		return false
+	}
+	value := cmd.Context().Value(installMissingContextKey{})
+	installMissing, ok := value.(bool)
+	return ok && installMissing
+}
+
+func promptsAllowed(cmd *cobra.Command) bool {
+	if cmd == nil {
+		return false
+	}
+	if isNoPrompt(cmd) {
+		return false
+	}
+	if isTruthyFlag(os.Getenv("CI")) {
+		return false
+	}
+	return isTerminalReader(cmd.InOrStdin())
+}
+
+func isTruthyFlag(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "1", "true", "yes", "on":
+		return true
+	default:
+		return false
+	}
+}
+
+func isTerminalReader(reader io.Reader) bool {
+	file, ok := reader.(*os.File)
+	if !ok {
+		return false
+	}
+	return term.IsTerminal(int(file.Fd()))
+}
+
+func shellStyleCommand(command string) string {
+	trimmed := strings.TrimSpace(command)
+	if trimmed == "" {
+		return ""
+	}
+	return trimmed
 }
 
 func statusf(cmd *cobra.Command, format string, args ...any) {
@@ -91,11 +182,11 @@ func nextStepsf(cmd *cobra.Command, title string, steps ...string) {
 }
 
 func statusPrefix(writer io.Writer) string {
-	return styleAccent(writer, "•")
+	return styleAccent(writer, "[luu]")
 }
 
 func successPrefix(writer io.Writer) string {
-	return styleSuccess(writer, "✓")
+	return styleSuccess(writer, "[ok]")
 }
 
 func promptPrefix(writer io.Writer) string {
@@ -103,7 +194,7 @@ func promptPrefix(writer io.Writer) string {
 }
 
 func nextPrefix(writer io.Writer) string {
-	return styleAccent(writer, "→")
+	return styleAccent(writer, "[next]")
 }
 
 func commandOutputWriters(cmd *cobra.Command) (io.Writer, io.Writer) {

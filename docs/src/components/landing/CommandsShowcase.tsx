@@ -5,6 +5,24 @@ import { TAB_ICONS } from "./icons"
 import { lineClass } from "./shared"
 import type { TabId } from "./types"
 
+function poweredByForSection(id: TabId): string[] {
+  switch (id) {
+    case "create":
+    case "install":
+      return ["Rokit", "Wally"]
+    case "add":
+      return ["Rokit", "Wally"]
+    case "dev":
+      return ["Rojo"]
+    case "lint":
+      return ["Selene", "StyLua"]
+    case "doctor":
+      return ["Luumen", "Rokit", "Rojo"]
+    default:
+      return ["your shell"]
+  }
+}
+
 export function CommandsShowcase() {
   const [activeId, setActiveId] = useState<TabId>("create")
   const sectionRefs = useRef<Partial<Record<TabId, HTMLDivElement>>>({})
@@ -95,25 +113,12 @@ export function CommandsShowcase() {
               </ul>
               <p className="text-white/20 text-xs font-mono">
                 Powered by{" "}
-                {idx === 0 || idx === 1 ? (
-                  <>
-                    <span className="text-white/35">Rokit</span>
-                    {" & "}
-                    <span className="text-white/35">Wally</span>
-                  </>
-                ) : idx === 2 ? (
-                  <>
-                    <span className="text-white/35">Rojo</span>
-                  </>
-                ) : idx === 3 ? (
-                  <>
-                    <span className="text-white/35">Rokit</span>
-                    {" & "}
-                    <span className="text-white/35">Wally</span>
-                  </>
-                ) : (
-                  <span className="text-white/35">your shell</span>
-                )}
+                {poweredByForSection(section.id).map((tool, toolIndex) => (
+                  <span key={tool}>
+                    {toolIndex > 0 ? " & " : ""}
+                    <span className="text-white/35">{tool}</span>
+                  </span>
+                ))}
               </p>
             </div>
 
@@ -126,9 +131,11 @@ export function CommandsShowcase() {
                   background: [
                     "linear-gradient(135deg, rgba(244,63,94,0.35) 0%, rgba(255,255,255,0.06) 60%)",
                     "linear-gradient(135deg, rgba(244,63,94,0.28) 0%, rgba(255,255,255,0.05) 60%)",
+                    "linear-gradient(135deg, rgba(16,185,129,0.28) 0%, rgba(255,255,255,0.05) 60%)",
                     "linear-gradient(135deg, rgba(251,146,60,0.30) 0%, rgba(255,255,255,0.05) 60%)",
                     "linear-gradient(135deg, rgba(244,63,94,0.32) 0%, rgba(255,255,255,0.06) 60%)",
-                    "linear-gradient(135deg, rgba(168,85,247,0.30) 0%, rgba(255,255,255,0.05) 60%)",
+                    "linear-gradient(135deg, rgba(14,165,233,0.30) 0%, rgba(255,255,255,0.05) 60%)",
+                    "linear-gradient(135deg, rgba(245,158,11,0.30) 0%, rgba(255,255,255,0.05) 60%)",
                   ][idx],
                   boxShadow: "0 -24px 80px rgba(0,0,0,0.5), 0 -4px 24px rgba(244,63,94,0.08)",
                 }}

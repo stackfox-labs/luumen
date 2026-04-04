@@ -75,6 +75,21 @@ func (r *Rokit) Install(ctx context.Context, options RunOptions) (process.Result
 	return executeTool(ctx, r.runner, "rokit", command, retryOptions)
 }
 
+func (r *Rokit) Add(ctx context.Context, tool string, alias string, options RunOptions) (process.Result, error) {
+	trimmedTool := strings.TrimSpace(tool)
+	if trimmedTool == "" {
+		return process.Result{ExitCode: -1}, &process.ExecError{Kind: process.ErrorKindInvalidCommand}
+	}
+
+	args := []string{"add", trimmedTool}
+	if trimmedAlias := strings.TrimSpace(alias); trimmedAlias != "" {
+		args = append(args, trimmedAlias)
+	}
+
+	command := process.Command{Name: r.executable, Args: args}
+	return executeTool(ctx, r.runner, "rokit", command, options)
+}
+
 func shouldSkipTrustCheck(env map[string]string) bool {
 	if value, ok := lookupEnvValue(env, "LUU_ROKIT_NO_TRUST_CHECK"); ok {
 		return isTruthy(value)
