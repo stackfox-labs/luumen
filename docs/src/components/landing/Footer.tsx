@@ -1,5 +1,32 @@
 import { Logo } from "./shared"
 
+const REPO_URL = "https://github.com/stackfox-labs/luumen"
+
+const PROJECT_LINKS = [
+  { label: "GitHub", href: REPO_URL },
+  { label: "Documentation", href: `${REPO_URL}#readme` },
+  { label: "Releases", href: `${REPO_URL}/releases` },
+  { label: "Changelog", href: `${REPO_URL}/releases` },
+]
+
+const COMMUNITY_LINKS = [
+  { label: "Discord", href: "#" },
+  { label: "X / Twitter", href: "#" },
+  { label: "Issues", href: `${REPO_URL}/issues` },
+  { label: "Discussions", href: `${REPO_URL}/discussions` },
+]
+
+function getAnchorProps(href: string) {
+  if (href.startsWith("http")) {
+    return {
+      target: "_blank" as const,
+      rel: "noreferrer",
+    }
+  }
+
+  return {}
+}
+
 export function Footer() {
   return (
     <footer className="bg-[#070707] border-t border-white/[0.05] shell-bleed-footer">
@@ -15,10 +42,10 @@ export function Footer() {
           <div>
             <p className="text-white/20 uppercase text-[9px] tracking-[0.16em] font-mono mb-6">PROJECT</p>
             <div className="space-y-4">
-              {["GitHub", "Documentation", "Releases", "Changelog"].map((link) => (
-                <div key={link}>
-                  <a href="#" className="text-white/35 hover:text-white/65 transition-colors">
-                    {link}
+              {PROJECT_LINKS.map((link) => (
+                <div key={link.label}>
+                  <a href={link.href} {...getAnchorProps(link.href)} className="text-white/35 hover:text-white/65 transition-colors">
+                    {link.label}
                   </a>
                 </div>
               ))}
@@ -27,10 +54,10 @@ export function Footer() {
           <div>
             <p className="text-white/20 uppercase text-[9px] tracking-[0.16em] font-mono mb-6">COMMUNITY</p>
             <div className="space-y-4">
-              {["Discord", "X / Twitter", "Issues", "Discussions"].map((link) => (
-                <div key={link}>
-                  <a href="#" className="text-white/35 hover:text-white/65 transition-colors">
-                    {link}
+              {COMMUNITY_LINKS.map((link) => (
+                <div key={link.label}>
+                  <a href={link.href} {...getAnchorProps(link.href)} className="text-white/35 hover:text-white/65 transition-colors">
+                    {link.label}
                   </a>
                 </div>
               ))}

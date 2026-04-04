@@ -1,5 +1,7 @@
 import { Logo } from "./shared"
 
+const REPO_URL = "https://github.com/stackfox-labs/luumen"
+
 export function Navbar() {
   return (
     <header className="relative z-50 bg-white border-b border-[#ebebeb]">
@@ -24,7 +26,9 @@ export function Navbar() {
           <div className="w-px h-5 bg-[#e5e5e5] mx-2" />
 
           <a
-            href="#"
+            href={REPO_URL}
+            target="_blank"
+            rel="noreferrer"
             className="flex items-center gap-2 text-[#0a0a0a] font-medium bg-[#0a0a0a] text-white px-5 py-2.5 rounded-lg hover:bg-[#222] transition-colors text-[15px]"
           >
             <svg viewBox="0 0 16 16" className="w-3.5 h-3.5" fill="currentColor">
