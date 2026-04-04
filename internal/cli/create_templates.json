@@ -1,0 +1,441 @@
+{
+  "templates": [
+    {
+      "name": "minimal",
+      "description": "Minimal Luumen project without rojo or wally.",
+      "project": {
+        "install": {
+          "tools": false,
+          "packages": false
+        },
+        "commands": {
+          "dev": [],
+          "serve": [],
+          "build": [],
+          "sourcemap": []
+        }
+      }
+    },
+    {
+      "name": "rojo-wally",
+      "description": "Default Luumen project with rojo and wally configured, as well as stylua and selene for linting and static analysis.",
+      "project": {
+        "install": {
+          "tools": true,
+          "packages": true
+        },
+        "commands": {
+          "dev": [
+            "luu sourcemap",
+            "rojo serve default.project.json"
+          ],
+          "serve": [
+            "rojo serve default.project.json"
+          ],
+          "build": [
+            "rojo build default.project.json --output build.rbxl"
+          ],
+          "sourcemap": [
+            "rojo sourcemap default.project.json --output sourcemap.json"
+          ]
+        },
+        "tasks": {
+          "lint": [
+            "stylua src"
+          ],
+          "check": [
+            "selene src"
+          ]
+        }
+      },
+      "directories": [
+        "src/client",
+        "src/server",
+        "src/shared"
+      ],
+      "files": [
+        {
+          "path": "rokit.toml",
+          "contentLines": [
+            "[tools]",
+            "rojo = \"rojo-rbx/rojo@7.6.1\"",
+            "wally = \"UpliftGames/wally@0.3.2\"",
+            "stylua = \"JohnnyMorganz/StyLua@2.4.0\"",
+            "selene = \"Kampfkarren/selene@0.30.1\""
+          ]
+        },
+        {
+          "path": "wally.toml",
+          "contentLines": [
+            "[package]",
+            "name = \"luumen/{{package_name}}\"",
+            "version = \"0.1.0\"",
+            "registry = \"https://github.com/UpliftGames/wally-index\"",
+            "realm = \"shared\"",
+            "",
+            "[dependencies]"
+          ]
+        },
+        {
+          "path": "default.project.json",
+          "contentLines": [
+            "{",
+            "  \"name\": \"{{project_name}}\",",
+            "  \"tree\": {",
+            "    \"$className\": \"DataModel\",",
+            "    \"ServerScriptService\": {",
+            "      \"$className\": \"ServerScriptService\",",
+            "      \"src\": {",
+            "        \"$path\": \"src/server\"",
+            "      }",
+            "    },",
+            "    \"ReplicatedStorage\": {",
+            "      \"$className\": \"ReplicatedStorage\",",
+            "      \"shared\": {",
+            "        \"$path\": \"src/shared\"",
+            "      }",
+            "    },",
+            "    \"StarterPlayer\": {",
+            "      \"$className\": \"StarterPlayer\",",
+            "      \"StarterPlayerScripts\": {",
+            "        \"$className\": \"StarterPlayerScripts\",",
+            "        \"src\": {",
+            "          \"$path\": \"src/client\"",
+            "        }",
+            "      }",
+            "    }",
+            "  }",
+            "}"
+          ]
+        },
+        {
+          "path": "src/client/init.client.luau",
+          "contentLines": [
+            "print(\"Client entrypoint loaded\")"
+          ]
+        },
+        {
+          "path": "src/server/init.server.luau",
+          "contentLines": [
+            "print(\"Server entrypoint loaded\")"
+          ]
+        },
+        {
+          "path": "src/shared/init.luau",
+          "contentLines": [
+            "local shared = {}",
+            "",
+            "return shared"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "rojo-only",
+      "description": "Rojo-only Luumen project with tooling but no Wally package manifest.",
+      "project": {
+        "install": {
+          "tools": true,
+          "packages": false
+        },
+        "commands": {
+          "dev": [
+            "luu sourcemap",
+            "rojo serve default.project.json"
+          ],
+          "serve": [
+            "rojo serve default.project.json"
+          ],
+          "build": [
+            "rojo build default.project.json --output build.rbxl"
+          ],
+          "sourcemap": [
+            "rojo sourcemap default.project.json --output sourcemap.json"
+          ]
+        },
+        "tasks": {
+          "lint": [
+            "stylua src"
+          ],
+          "check": [
+            "selene src"
+          ]
+        }
+      },
+      "directories": [
+        "src/client",
+        "src/server",
+        "src/shared"
+      ],
+      "files": [
+        {
+          "path": "rokit.toml",
+          "contentLines": [
+            "[tools]",
+            "rojo = \"rojo-rbx/rojo@7.6.1\"",
+            "stylua = \"JohnnyMorganz/StyLua@2.4.0\"",
+            "selene = \"Kampfkarren/selene@0.30.1\""
+          ]
+        },
+        {
+          "path": "default.project.json",
+          "contentLines": [
+            "{",
+            "  \"name\": \"{{project_name}}\",",
+            "  \"tree\": {",
+            "    \"$className\": \"DataModel\",",
+            "    \"ServerScriptService\": {",
+            "      \"$className\": \"ServerScriptService\",",
+            "      \"src\": {",
+            "        \"$path\": \"src/server\"",
+            "      }",
+            "    },",
+            "    \"ReplicatedStorage\": {",
+            "      \"$className\": \"ReplicatedStorage\",",
+            "      \"shared\": {",
+            "        \"$path\": \"src/shared\"",
+            "      }",
+            "    },",
+            "    \"StarterPlayer\": {",
+            "      \"$className\": \"StarterPlayer\",",
+            "      \"StarterPlayerScripts\": {",
+            "        \"$className\": \"StarterPlayerScripts\",",
+            "        \"src\": {",
+            "          \"$path\": \"src/client\"",
+            "        }",
+            "      }",
+            "    }",
+            "  }",
+            "}"
+          ]
+        },
+        {
+          "path": "src/client/init.client.luau",
+          "contentLines": [
+            "print(\"Client entrypoint loaded\")"
+          ]
+        },
+        {
+          "path": "src/server/init.server.luau",
+          "contentLines": [
+            "print(\"Server entrypoint loaded\")"
+          ]
+        },
+        {
+          "path": "src/shared/init.luau",
+          "contentLines": [
+            "local shared = {}",
+            "",
+            "return shared"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "lune-http",
+      "description": "Lune runtime template with HTTP client and server examples.",
+      "project": {
+        "install": {
+          "tools": true,
+          "packages": false
+        },
+        "commands": {
+          "dev": [
+            "lune run src/http_server.luau"
+          ],
+          "serve": [
+            "lune run src/http_server.luau"
+          ],
+          "build": [
+            "echo No build step configured for lune-http"
+          ],
+          "sourcemap": [
+            "echo Sourcemap is not applicable for lune-http"
+          ]
+        },
+        "tasks": {
+          "run": [
+            "lune run src/main.luau"
+          ],
+          "http": [
+            "lune run src/http_server.luau"
+          ],
+          "lint": [
+            "stylua src"
+          ]
+        }
+      },
+      "directories": [
+        "src"
+      ],
+      "files": [
+        {
+          "path": "rokit.toml",
+          "contentLines": [
+            "[tools]",
+            "lune = \"lune-org/lune@0.10.4\"",
+            "stylua = \"JohnnyMorganz/StyLua@2.4.0\""
+          ]
+        },
+        {
+          "path": "src/main.luau",
+          "contentLines": [
+            "local net = require(\"@lune/net\")",
+            "local serde = require(\"@lune/serde\")",
+            "",
+            "local response = net.request(\"https://www.google.com\")",
+            "print(\"GET ok:\", response.ok)",
+            "print(\"Status:\", response.statusCode, response.statusMessage)",
+            "",
+            "local apiResponse = net.request({",
+            "  url = \"https://dummyjson.com/products/add\",",
+            "  method = \"POST\",",
+            "  headers = { [\"Content-Type\"] = \"application/json\" },",
+            "  body = serde.encode(\"json\", {",
+            "    title = \"Cool Pencil\"",
+            "  })",
+            "})",
+            "",
+            "local product = serde.decode(\"json\", apiResponse.body)",
+            "print(\"Created product:\", product.id, \"-\", product.title)"
+          ]
+        },
+        {
+          "path": "src/http_server.luau",
+          "contentLines": [
+            "local net = require(\"@lune/net\")",
+            "",
+            "print(\"HTTP echo server listening on http://localhost:8080\")",
+            "net.serve(8080, function(request)",
+            "  return {",
+            "    status = 200,",
+            "    headers = { [\"Content-Type\"] = \"text/plain\" },",
+            "    body = \"Echo:\\n\" .. request.body,",
+            "  }",
+            "end)"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "lute-guessing",
+      "description": "Lute runtime template with a terminal guessing game and argument parsing example.",
+      "project": {
+        "install": {
+          "tools": true,
+          "packages": false
+        },
+        "commands": {
+          "dev": [
+            "lute run src/main.luau"
+          ],
+          "serve": [
+            "lute run src/main.luau"
+          ],
+          "build": [
+            "echo No build step configured for lute-guessing"
+          ],
+          "sourcemap": [
+            "echo Sourcemap is not applicable for lute-guessing"
+          ]
+        },
+        "tasks": {
+          "play": [
+            "lute run src/main.luau"
+          ],
+          "play-50": [
+            "lute run src/main.luau --max 50"
+          ],
+          "lint": [
+            "stylua src tests"
+          ],
+          "check": [
+            "lute check src/main.luau"
+          ],
+          "setup": [
+            "lute setup"
+          ]
+        }
+      },
+      "directories": [
+        "src",
+        "tests"
+      ],
+      "files": [
+        {
+          "path": "rokit.toml",
+          "contentLines": [
+            "[tools]",
+            "lute = \"luau-lang/lute@0.1.0-nightly.20260327\"",
+            "stylua = \"JohnnyMorganz/StyLua@2.4.0\""
+          ]
+        },
+        {
+          "path": "src/main.luau",
+          "contentLines": [
+            "local io = require(\"@std/io\")",
+            "local args = { ... }",
+            "",
+            "local function getMaxValue(argv)",
+            "  if #argv == 2 then",
+            "    error(\"Expected a value after --max\")",
+            "  elseif #argv < 2 then",
+            "    return 100",
+            "  end",
+            "",
+            "  if argv[2] == \"--max\" then",
+            "    local value = tonumber(argv[3])",
+            "    if value and value > 0 then",
+            "      return math.floor(value)",
+            "    end",
+            "    error(\"Invalid --max value: \" .. tostring(argv[3]))",
+            "  end",
+            "",
+            "  return 100",
+            "end",
+            "",
+            "local maxValue = getMaxValue(args)",
+            "local randomNumber = math.random(maxValue)",
+            "",
+            "print(`Guess a number between 1 and {maxValue}!`)",
+            "",
+            "local guessedRight = false",
+            "while not guessedRight do",
+            "  print(\"Guess a number:\")",
+            "  local input = io.input()",
+            "  local guess = tonumber(input)",
+            "",
+            "  if not guess then",
+            "    print(`Not a number: {input}`)",
+            "    continue",
+            "  end",
+            "",
+            "  if guess > randomNumber then",
+            "    print(\"Too high!\")",
+            "  elseif guess < randomNumber then",
+            "    print(\"Too low!\")",
+            "  else",
+            "    print(\"Got it!\")",
+            "    guessedRight = true",
+            "  end",
+            "end"
+          ]
+        },
+        {
+          "path": ".luaurc",
+          "contentLines": [
+            "{",
+            "  \"languageMode\": \"strict\"",
+            "}"
+          ]
+        },
+        {
+          "path": "tests/.gitkeep",
+          "contentLines": [
+            ""
+          ]
+        }
+      ]
+    }
+  ]
+}
