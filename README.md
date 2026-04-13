@@ -1,3 +1,7 @@
+<img width="1150" height="881" alt="Luumen The Unified CLI for Roblox Development" src="https://github.com/user-attachments/assets/f652e297-5bcd-4d65-b7f7-f7d6fb0ea9a1" />
+
+---
+
 # Luumen
 
 Luumen is a unified CLI for Roblox developers.
