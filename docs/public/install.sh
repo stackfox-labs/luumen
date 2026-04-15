@@ -7,6 +7,7 @@ VERSION="${LUU_VERSION:-latest}"
 INSTALL_DIR="${LUU_INSTALL_DIR:-${HOME}/.local/bin}"
 ADD_TO_PATH="${LUU_ADD_TO_PATH:-0}"
 DRY_RUN="${LUU_INSTALL_DRY_RUN:-0}"
+ALLOW_PRE_RELEASE="${LUU_PRE_RELEASE:-0}"
 
 log() {
   printf '%s\n' "$*"
@@ -19,6 +20,26 @@ fail() {
 
 need_cmd() {
   command -v "$1" >/dev/null 2>&1 || fail "required command not found: $1"
+}
+
+print_help() {
+  cat <<'EOF'
+Luumen installer (Linux/macOS)
+
+Usage:
+  sh install.sh [--pre-release]
+
+Flags:
+  --pre-release  Allow installing pre-release tags.
+  -h, --help     Show this help.
+
+Env overrides:
+  LUU_VERSION            Version to install (default: latest)
+  LUU_INSTALL_DIR        Install directory (default: ~/.local/bin)
+  LUU_INSTALL_DRY_RUN    1/true to skip writing files
+  LUU_ADD_TO_PATH        1/true to print shell profile hint
+  LUU_PRE_RELEASE        1/true to allow pre-release tags
+EOF
 }
 
 is_truthy() {
@@ -100,6 +121,42 @@ url_encode_version() {
   esac
 }
 
+extract_tag_name() {
+  awk -F '"' '/"tag_name"[[:space:]]*:/ { print $4; exit }'
+}
+
+resolve_release_tag() {
+  requested="$1"
+
+  if [ "$requested" != "latest" ]; then
+    resolved_tag="$(url_encode_version "$requested")"
+    if ! is_truthy "$ALLOW_PRE_RELEASE" && printf '%s' "$resolved_tag" | grep -q -- '-'; then
+      fail "pre-release version '$resolved_tag' requested but --pre-release was not set"
+    fi
+    printf '%s' "$resolved_tag"
+    return
+  fi
+
+  latest_api="https://api.github.com/repos/${REPO}/releases/latest"
+  latest_json="$(curl --proto '=https' --tlsv1.2 --silent --show-error --location "$latest_api" 2>/dev/null || true)"
+  resolved_tag="$(printf '%s' "$latest_json" | extract_tag_name)"
+  if [ -n "$resolved_tag" ]; then
+    printf '%s' "$resolved_tag"
+    return
+  fi
+
+  if ! is_truthy "$ALLOW_PRE_RELEASE"; then
+    fail "no stable release found; rerun with --pre-release to allow installing the newest pre-release"
+  fi
+
+  log "No stable release found; falling back to newest release including pre-releases."
+  list_api="https://api.github.com/repos/${REPO}/releases?per_page=1"
+  list_json="$(curl --proto '=https' --tlsv1.2 --fail --show-error --location "$list_api")" || fail "failed to query GitHub releases API"
+  resolved_tag="$(printf '%s' "$list_json" | extract_tag_name)"
+  [ -n "$resolved_tag" ] || fail "could not resolve latest release tag from GitHub API"
+  printf '%s' "$resolved_tag"
+}
+
 append_path_hint() {
   if printf ':%s:' "$PATH" | grep -F ":$INSTALL_DIR:" >/dev/null 2>&1; then
     return
@@ -123,17 +180,29 @@ need_cmd uname
 need_cmd mktemp
 need_cmd find
 
+while [ "$#" -gt 0 ]; do
+  case "$1" in
+    --pre-release)
+      ALLOW_PRE_RELEASE=1
+      ;;
+    -h|--help)
+      print_help
+      exit 0
+      ;;
+    *)
+      fail "unknown argument: $1"
+      ;;
+  esac
+  shift
+done
+
 OS="$(normalize_os "$(uname -s)")"
 ARCH="$(normalize_arch "$(uname -m)")"
 ARTIFACT="luu-${OS}-${ARCH}.tar.gz"
 CHECKSUMS_FILE="checksums.txt"
 
-if [ "$VERSION" = "latest" ]; then
-  BASE_URL="https://github.com/${REPO}/releases/latest/download"
-else
-  SAFE_VERSION="$(url_encode_version "$VERSION")"
-  BASE_URL="https://github.com/${REPO}/releases/download/${SAFE_VERSION}"
-fi
+RESOLVED_VERSION="$(resolve_release_tag "$VERSION")"
+BASE_URL="https://github.com/${REPO}/releases/download/${RESOLVED_VERSION}"
 
 TMP_DIR="$(mktemp -d "${TMPDIR:-/tmp}/luu-install.XXXXXX")"
 ARCHIVE_PATH="$TMP_DIR/$ARTIFACT"
@@ -148,6 +217,10 @@ trap cleanup EXIT INT TERM
 log "Preparing Luumen install..."
 log "  Repository: https://github.com/$REPO"
 log "  Version:    $VERSION"
+log "  Pre-rel:    $ALLOW_PRE_RELEASE"
+if [ "$VERSION" != "$RESOLVED_VERSION" ]; then
+  log "  Resolved:   $RESOLVED_VERSION"
+fi
 log "  Platform:   $OS/$ARCH"
 log "  Install to: $INSTALL_DIR"
 log "Downloading release metadata..."
