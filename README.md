@@ -26,6 +26,28 @@ Luumen works with the existing ecosystem:
 
 It does not replace those tools.
 
+## Installation
+
+Install Luumen with the hosted installer scripts.
+
+macOS and Linux:
+
+```bash
+curl -fsSL https://luumen.dev/install.sh | bash
+```
+
+Windows PowerShell:
+
+```powershell
+irm https://luumen.dev/install.ps1 | iex
+```
+
+Verify installation:
+
+```bash
+luu --version
+```
+
 ## Commands
 
 ```bash
