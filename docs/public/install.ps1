@@ -61,10 +61,34 @@ function Test-IsPreReleaseTag {
 }
 
 function Resolve-Architecture {
-    $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString().ToLowerInvariant()
+    $arch = $null
+
+    $runtimeInfoType = [Type]::GetType("System.Runtime.InteropServices.RuntimeInformation")
+    if ($null -ne $runtimeInfoType) {
+        $osArchProperty = $runtimeInfoType.GetProperty("OSArchitecture")
+        if ($null -ne $osArchProperty) {
+            $osArchValue = $osArchProperty.GetValue($null, @())
+            if ($null -ne $osArchValue) {
+                $arch = $osArchValue.ToString().ToLowerInvariant()
+            }
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($arch)) {
+        if (-not [string]::IsNullOrWhiteSpace($env:PROCESSOR_ARCHITEW6432)) {
+            $arch = $env:PROCESSOR_ARCHITEW6432.ToLowerInvariant()
+        }
+        elseif (-not [string]::IsNullOrWhiteSpace($env:PROCESSOR_ARCHITECTURE)) {
+            $arch = $env:PROCESSOR_ARCHITECTURE.ToLowerInvariant()
+        }
+    }
+
     switch ($arch) {
         "x64" { return "amd64" }
+        "amd64" { return "amd64" }
+        "x86_64" { return "amd64" }
         "arm64" { return "arm64" }
+        "aarch64" { return "arm64" }
         default { throw "Unsupported architecture: $arch" }
     }
 }
