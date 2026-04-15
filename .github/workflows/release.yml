@@ -100,6 +100,8 @@ jobs:
     name: Publish Release
     runs-on: ubuntu-latest
     needs: build
+    env:
+      TARGET_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
 
     steps:
       - name: Download packaged artifacts
@@ -116,11 +118,80 @@ jobs:
           cd release-assets
           sha256sum * > checksums.txt
 
+      - name: Generate commit summary
+        id: commit_notes
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          result-encoding: string
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const targetTag = process.env.TARGET_TAG;
+
+            if (!targetTag) {
+              return "### Commit Summary\n\n- Could not determine target tag.";
+            }
+
+            const tags = await github.paginate(github.rest.repos.listTags, {
+              owner,
+              repo,
+              per_page: 100,
+            });
+
+            const targetIndex = tags.findIndex((tag) => tag.name === targetTag);
+            const previousTag = targetIndex >= 0 && targetIndex + 1 < tags.length
+              ? tags[targetIndex + 1].name
+              : null;
+
+            let commits = [];
+            if (previousTag) {
+              const compare = await github.rest.repos.compareCommitsWithBasehead({
+                owner,
+                repo,
+                basehead: `${previousTag}...${targetTag}`,
+              });
+              commits = compare.data.commits || [];
+            } else {
+              const list = await github.rest.repos.listCommits({
+                owner,
+                repo,
+                sha: targetTag,
+                per_page: 30,
+              });
+              commits = list.data || [];
+            }
+
+            const maxCommits = 50;
+            const shown = commits.slice(-maxCommits);
+            const header = previousTag
+              ? `### Commit Summary (${previousTag}...${targetTag})`
+              : `### Commit Summary (${targetTag})`;
+
+            const lines = shown.map((commit) => {
+              const sha = commit.sha.slice(0, 7);
+              const subject = (commit.commit.message || "").split("\n")[0];
+              const author = commit.author && commit.author.login ? ` @${commit.author.login}` : "";
+              return `- \`${sha}\` ${subject}${author}`;
+            });
+
+            if (lines.length === 0) {
+              lines.push("- No commits found.");
+            }
+
+            if (commits.length > maxCommits) {
+              lines.push(`- ...and ${commits.length - maxCommits} more commit(s).`);
+            }
+
+            return `${header}\n\n${lines.join("\n")}`;
+
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
-          name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
+          tag_name: ${{ env.TARGET_TAG }}
+          name: ${{ env.TARGET_TAG }}
           generate_release_notes: true
+          append_body: true
+          body: ${{ steps.commit_notes.outputs.result }}
           files: |
             release-assets/*
