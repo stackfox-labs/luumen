@@ -175,6 +175,25 @@ func TestRootHelpShowsCommandGroups(t *testing.T) {
 	}
 }
 
+func TestRootVersionFlagPrintsVersion(t *testing.T) {
+	t.Parallel()
+
+	root := NewRootCmd()
+	output := bytes.NewBuffer(nil)
+	root.SetOut(output)
+	root.SetErr(output)
+	root.SetArgs([]string{"--version"})
+
+	if err := root.Execute(); err != nil {
+		t.Fatalf("expected root version success, got: %v", err)
+	}
+
+	text := output.String()
+	if !strings.Contains(text, "luu version") || !strings.Contains(text, "dev") {
+		t.Fatalf("expected root version output, got: %q", text)
+	}
+}
+
 func TestDevMissingRojoProjectPrintsPlannedStepsBeforeFailing(t *testing.T) {
 	t.Parallel()
 

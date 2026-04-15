@@ -17,6 +17,7 @@ func NewRootCmd() *cobra.Command {
 		Use:           "luu",
 		Short:         "Unified Roblox filesystem workflow CLI",
 		Long:          "Luumen orchestrates existing Roblox tooling (Rokit, Wally, and Rojo) through a single CLI.",
+		Version:       currentVersion(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRun: func(cmd *cobra.Command, _ []string) {

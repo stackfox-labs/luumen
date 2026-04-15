@@ -18,6 +18,8 @@ jobs:
   build:
     name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
     runs-on: ${{ matrix.runner }}
+    env:
+      TARGET_TAG: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
     strategy:
       fail-fast: false
       matrix:
@@ -50,6 +52,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref }}
 
       - name: Setup Go
         uses: actions/setup-go@v5
@@ -66,8 +70,9 @@ jobs:
           export CGO_ENABLED=0
           export GOOS="${{ matrix.goos }}"
           export GOARCH="${{ matrix.goarch }}"
+          VERSION="${TARGET_TAG:-dev}"
 
-          go build -trimpath -ldflags "-s -w" -o dist/luu ./cmd/luu
+          go build -trimpath -ldflags "-s -w -X luumen/internal/cli.version=${VERSION}" -o dist/luu ./cmd/luu
 
           asset_name="luu-${{ matrix.goos }}-${{ matrix.goarch }}.tar.gz"
           tar -C dist -czf "$asset_name" luu
@@ -82,8 +87,10 @@ jobs:
           $env:CGO_ENABLED = "0"
           $env:GOOS = "windows"
           $env:GOARCH = "${{ matrix.goarch }}"
+          $version = if ($env:TARGET_TAG) { $env:TARGET_TAG } else { "dev" }
+          $ldflags = "-s -w -X luumen/internal/cli.version=$version"
 
-          go build -trimpath -ldflags "-s -w" -o dist/luu.exe ./cmd/luu
+          go build -trimpath -ldflags $ldflags -o dist/luu.exe ./cmd/luu
 
           $assetName = "luu-windows-${{ matrix.goarch }}.zip"
           Compress-Archive -Path dist/luu.exe -DestinationPath $assetName -Force
