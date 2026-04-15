@@ -2,7 +2,7 @@
 set -eu
 (set -o pipefail >/dev/null 2>&1) && set -o pipefail || true
 
-REPO="${LUU_INSTALL_REPO:-stackfox-labs/luumen}"
+REPO="stackfox-labs/luumen"
 VERSION="${LUU_VERSION:-latest}"
 INSTALL_DIR="${LUU_INSTALL_DIR:-${HOME}/.local/bin}"
 ADD_TO_PATH="${LUU_ADD_TO_PATH:-0}"
@@ -145,7 +145,12 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-log "Downloading release metadata from $REPO..."
+log "Preparing Luumen install..."
+log "  Repository: https://github.com/$REPO"
+log "  Version:    $VERSION"
+log "  Platform:   $OS/$ARCH"
+log "  Install to: $INSTALL_DIR"
+log "Downloading release metadata..."
 
 curl --proto '=https' --tlsv1.2 --fail --show-error --location \
   "$BASE_URL/$CHECKSUMS_FILE" \

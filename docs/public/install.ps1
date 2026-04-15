@@ -76,24 +76,47 @@ function Add-ToUserPath {
     $normalized = [IO.Path]::GetFullPath($Directory).TrimEnd('\\')
     $current = [Environment]::GetEnvironmentVariable("Path", "User")
     if ([string]::IsNullOrWhiteSpace($current)) {
-        [Environment]::SetEnvironmentVariable("Path", $normalized, "User")
-        Write-Host "Added $normalized to user PATH."
-        return
+        try {
+            [Environment]::SetEnvironmentVariable("Path", $normalized, "User")
+            Write-Host "Added $normalized to user PATH."
+            return "added"
+        }
+        catch {
+            Write-Warning "Could not update user PATH automatically: $($_.Exception.Message)"
+            return "failed"
+        }
     }
 
     $entries = $current.Split(';') | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
     foreach ($entry in $entries) {
-        if ([IO.Path]::GetFullPath($entry).TrimEnd('\\') -ieq $normalized) {
-            return
+        $trimmed = $entry.Trim().Trim('"')
+        if ([string]::IsNullOrWhiteSpace($trimmed)) {
+            continue
+        }
+
+        try {
+            if ([IO.Path]::GetFullPath($trimmed).TrimEnd('\\') -ieq $normalized) {
+                return "already"
+            }
+        }
+        catch {
+            # Keep invalid PATH entries untouched and continue checking others.
         }
     }
 
     $updated = ($entries + $normalized) -join ';'
-    [Environment]::SetEnvironmentVariable("Path", $updated, "User")
-    Write-Host "Added $normalized to user PATH."
+    try {
+        [Environment]::SetEnvironmentVariable("Path", $updated, "User")
+        Write-Host "Added $normalized to user PATH."
+        return "added"
+    }
+    catch {
+        Write-Warning "Could not update user PATH automatically: $($_.Exception.Message)"
+        return "failed"
+    }
 }
 
-$repo = Get-EnvOrDefault -Name "LUU_INSTALL_REPO" -Default "stackfox-labs/luumen"
+$repo = "stackfox-labs/luumen"
 $version = Get-EnvOrDefault -Name "LUU_VERSION" -Default "latest"
 $installDir = Get-EnvOrDefault -Name "LUU_INSTALL_DIR" -Default (Join-Path $env:LOCALAPPDATA "Programs\luumen\bin")
 $addToPath = Get-BoolFromEnv -Name "LUU_ADD_TO_PATH" -Default $true
@@ -122,10 +145,15 @@ $extractDir = Join-Path $tempRoot "extract"
 try {
     New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
 
-    Write-Host "Downloading release metadata from $repo..."
+    Write-Host "Preparing Luumen install..."
+    Write-Host "  Repository: https://github.com/$repo"
+    Write-Host "  Version:    $version"
+    Write-Host "  Platform:   windows/$arch"
+    Write-Host "  Install to: $installDir"
+    Write-Host "Downloading release metadata..."
 
-    Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/$checksumsName" -OutFile $checksumsPath
-    Invoke-WebRequest -UseBasicParsing -Uri "$baseUrl/$artifactName" -OutFile $assetPath
+    Invoke-WebRequest -Uri "$baseUrl/$checksumsName" -OutFile $checksumsPath
+    Invoke-WebRequest -Uri "$baseUrl/$artifactName" -OutFile $assetPath
 
     $expected = Get-ExpectedHash -ChecksumsPath $checksumsPath -ArtifactName $artifactName
     $actual = (Get-FileHash -Algorithm SHA256 -Path $assetPath).Hash.ToLowerInvariant()
@@ -157,12 +185,24 @@ try {
     Write-Host "Installed luu to $target"
 
     if ($addToPath) {
-        Add-ToUserPath -Directory $installDir
-        Write-Host "Open a new terminal to refresh PATH if needed."
+        $pathResult = Add-ToUserPath -Directory $installDir
+        if ($pathResult -eq "added") {
+            Write-Host "Open a new terminal to refresh PATH if needed."
+        }
+        elseif ($pathResult -eq "already") {
+            Write-Host "Install directory is already on user PATH."
+        }
+        else {
+            Write-Host "PATH update failed. Add this directory manually if needed: $installDir"
+            Write-Host "Suggested command:"
+            Write-Host "  [Environment]::SetEnvironmentVariable('Path', '$installDir;' + [Environment]::GetEnvironmentVariable('Path', 'User'), 'User')"
+        }
     }
     else {
         Write-Host "Install directory not added to PATH."
         Write-Host "Add this directory manually if needed: $installDir"
+        Write-Host "Suggested command:"
+        Write-Host "  [Environment]::SetEnvironmentVariable('Path', '$installDir;' + [Environment]::GetEnvironmentVariable('Path', 'User'), 'User')"
     }
 
     Write-Host "Run 'luu --help' to verify installation."
