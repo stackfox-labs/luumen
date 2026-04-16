@@ -9,7 +9,7 @@ import (
 
 func main() {
 	cmd := cli.NewRootCmd()
-	cmd.Use = "luu"
+	cmd.Use = "luu-dev"
 
 	if err := cmd.Execute(); err != nil {
 		fmt.Fprintln(os.Stderr, cli.RenderCLIError(os.Stderr, err))

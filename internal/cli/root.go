@@ -49,7 +49,7 @@ func NewRootCmd() *cobra.Command {
 	defaultHelp := root.HelpFunc()
 	root.SetHelpFunc(func(cmd *cobra.Command, args []string) {
 		writer := cmd.OutOrStdout()
-		fmt.Fprintf(writer, "%s %s\n", styleAccent(writer, "luu"), styleMuted(writer, "unified Roblox workflow CLI"))
+		fmt.Fprintf(writer, "%s %s\n", styleAccent(writer, cmd.Root().Use), styleMuted(writer, "unified Roblox workflow CLI"))
 		if cmd == root {
 			fmt.Fprintln(writer)
 		}
