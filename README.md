@@ -1,4 +1,4 @@
-[<img width="1150" height="881" alt="Luumen The Unified CLI for Roblox Development" src="https://github.com/user-attachments/assets/f652e297-5bcd-4d65-b7f7-f7d6fb0ea9a1" />](https://luumen.dev/)
+[<img width="1438" height="1182" alt="Luumen The unified CLI for Luau development" src="https://github.com/user-attachments/assets/93943930-6af5-4ce2-8ad7-9171aa108557" />](https://luumen.dev/)
 
 ---
 
