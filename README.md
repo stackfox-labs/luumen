@@ -42,6 +42,8 @@ Windows PowerShell:
 irm https://luumen.dev/install.ps1 | iex
 ```
 
+or manually download the latest release from the [Releases](https://github.com/stackfox-labs/luumen/releases) page and add it to your PATH.
+
 Verify installation:
 
 ```bash
@@ -154,20 +156,7 @@ Tool-specific files such as `rokit.toml`, `wally.toml`, and Rojo project files a
 
 ## Status
 
-Luumen is under development.
-
-## Goal
-
-A Luumen repo should be easy to understand and easy to run.
-
-A developer should be able to clone a repo and use:
-
-```bash
-luu install
-luu dev
-```
-
-without having to learn a different command setup for every project.
+Luumen is currently in version 0.1.0.
 
 ## License
 
