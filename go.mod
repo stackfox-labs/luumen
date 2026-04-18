@@ -1,8 +1,9 @@
 module luumen
 
-go 1.25.0
+go 1.25.6
 
 require (
+	github.com/Wh1teSlash/luau-parser v1.1.1
 	github.com/pelletier/go-toml/v2 v2.3.0
 	github.com/spf13/cobra v1.10.2
 	golang.org/x/term v0.41.0

@@ -51,7 +51,7 @@ func newInitCmd(deps initCommandDeps) *cobra.Command {
 		Use:   "init",
 		Short: "Adopt an existing repo into Luumen",
 		Long: "Init inspects the current repository for Rokit, Wally, and Rojo files, " +
-			"then generates luumen.toml with sensible default command mappings.",
+			"then generates project.config.luau with sensible default command mappings.",
 		Example: "luu init\n" +
 			"luu init --quiet",
 		Args: requireNoPositionalArgs(),

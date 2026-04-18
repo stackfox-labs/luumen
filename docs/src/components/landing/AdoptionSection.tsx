@@ -31,7 +31,7 @@ export function AdoptionSection() {
           <h3 className="font-display text-[32px] font-bold text-[#0a0a0a] mb-5">Adopting an existing repo?</h3>
           <p className="text-[#666] text-[17px] leading-relaxed mb-10">
             <code className="font-mono text-[13px] text-[#555]">luu init</code> detects your existing Rojo, Wally, and Rokit config and generates a{" "}
-            <code className="font-mono text-[13px] text-[#555]">luumen.toml</code> to match.
+            <code className="font-mono text-[13px] text-[#555]">project.config.luau</code> to match.
           </p>
           <TerminalWindow>
             <div className="px-6 py-5 font-mono text-[15px] leading-[1.9]">

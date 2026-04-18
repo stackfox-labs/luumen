@@ -41,7 +41,7 @@ func newRunCmd(deps runCommandDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run <task>",
 		Short: "Run a named Luumen task",
-		Long:  "Run executes a task from [tasks] in luumen.toml. Task values can be a string or an array of strings.",
+		Long:  "Run executes a task from tasks in project.config.luau. Task values can be a string or an array of strings.",
 		Example: "luu run test\n" +
 			"luu run ci --quiet",
 		Args: requireExactlyOneArg("task"),
@@ -53,7 +53,7 @@ func newRunCmd(deps runCommandDeps) *cobra.Command {
 				return fmt.Errorf("failed to detect workspace: %w. Next: run the command from a repository directory", err)
 			}
 			if !state.HasLuumenConfig {
-				return fmt.Errorf("cannot run task: %s was not found in %s. Next: create luumen.toml or run luu init", workspace.LuumenConfigFile, state.RootPath)
+				return fmt.Errorf("cannot run task: %s was not found in %s. Next: create project.config.luau or run luu init", workspace.LuumenConfigFile, state.RootPath)
 			}
 
 			cfg, err := deps.loadConfig(state.LuumenConfigPath)
@@ -76,7 +76,7 @@ func newRunCmd(deps runCommandDeps) *cobra.Command {
 			}); err != nil {
 				if errors.Is(err, tasks.ErrTaskNotFound) {
 					if _, exists := cfg.Commands[args[0]]; exists {
-						return fmt.Errorf("task %q is defined under [commands], but luu run only executes [tasks]. Next: move %q to [tasks] in %s", args[0], args[0], workspace.LuumenConfigFile)
+						return fmt.Errorf("task %q is defined under commands, but luu run only executes tasks. Next: move %q into tasks in %s", args[0], args[0], workspace.LuumenConfigFile)
 					}
 				}
 				return fmt.Errorf("failed to run task %q: %w", args[0], err)

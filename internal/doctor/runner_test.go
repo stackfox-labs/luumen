@@ -13,7 +13,7 @@ func TestRunnerHealthyRepo(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
-	writeFile(t, filepath.Join(root, workspace.LuumenConfigFile), "[project]\nname = \"game\"\n")
+	writeFile(t, filepath.Join(root, workspace.LuumenConfigFile), "return {\n    project = {\n        name = \"game\",\n    },\n}\n")
 	writeFile(t, filepath.Join(root, workspace.RokitConfigFile), "[tools]\nrojo = \"rojo-rbx/rojo\"\n")
 	writeFile(t, filepath.Join(root, workspace.WallyConfigFile), "[dependencies]\n")
 	writeFile(t, filepath.Join(root, "default.project.json"), "{\"tree\":{}}\n")
@@ -44,7 +44,7 @@ func TestRunnerMalformedConfigsAndRojo(t *testing.T) {
 	t.Parallel()
 
 	root := t.TempDir()
-	writeFile(t, filepath.Join(root, workspace.LuumenConfigFile), "[tasks]\nbad = 1\n")
+	writeFile(t, filepath.Join(root, workspace.LuumenConfigFile), "return {\n    tasks = {\n        bad = 1,\n    },\n}\n")
 	writeFile(t, filepath.Join(root, workspace.RokitConfigFile), "[tools\n")
 	writeFile(t, filepath.Join(root, workspace.WallyConfigFile), "[dependencies\n")
 	writeFile(t, filepath.Join(root, "default.project.json"), "{bad json")

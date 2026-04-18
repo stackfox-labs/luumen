@@ -139,7 +139,7 @@ func TestInitRefusesExistingLuumenConfig(t *testing.T) {
 		writeConfig: writer.Write,
 	})
 	if err == nil {
-		t.Fatal("expected existing luumen.toml error")
+		t.Fatal("expected existing config error")
 	}
 	if !strings.Contains(err.Error(), "refusing to overwrite") {
 		t.Fatalf("expected overwrite-protection error, got: %v", err)

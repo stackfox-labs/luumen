@@ -39,7 +39,7 @@ export const SECTIONS: CommandSection[] = [
     points: [
       "Runs rokit install for all dev tools",
       "Runs wally install for runtime packages",
-      "Works without luumen.toml when possible",
+      "Works without project.config.luau when possible",
       "Fine-grained control with --tools / --packages",
     ],
     lines: [
@@ -80,9 +80,9 @@ export const SECTIONS: CommandSection[] = [
     heading: "Your full dev workflow",
     command: "luu dev",
     points: [
-      "Runs your repo's [commands].dev sequence",
+      "Runs your repo's commands.dev sequence",
       "Default flow: sourcemap generation then Rojo serve",
-      "Fully overridable per-repo via luumen.toml",
+      "Fully overridable per-repo via project.config.luau",
       "Pairs naturally with luu lint and luu format",
     ],
     lines: [
@@ -103,7 +103,7 @@ export const SECTIONS: CommandSection[] = [
     heading: "Built-in quality checks",
     command: "luu lint",
     points: [
-      "Runs [commands].lint from luumen.toml",
+      "Runs commands.lint from project.config.luau",
       "Use luu format for formatter workflows",
       "No custom task names needed for standard checks",
       "Keep luu run <task> for project-specific automation",
@@ -126,7 +126,7 @@ export const SECTIONS: CommandSection[] = [
     heading: "Health check your repo",
     command: "luu doctor",
     points: [
-      "Validates luumen.toml and rokit.toml",
+      "Validates project.config.luau and rokit.toml",
       "Checks required executables in PATH",
       "Surfaces actionable warnings and next steps",
       "Summarizes pass, warning, and error counts",
@@ -134,7 +134,7 @@ export const SECTIONS: CommandSection[] = [
     lines: [
       { text: "  [luu] Running health checks...", kind: "muted" },
       { text: "", kind: "blank" },
-      { text: "  pass: luumen.toml is valid. (luumen-config)", kind: "success" },
+      { text: "  pass: project.config.luau is valid. (luumen-config)", kind: "success" },
       { text: "  pass: rokit.toml is valid. (rokit-config)", kind: "success" },
       { text: "  pass: rokit executable found in PATH. (rokit-binary)", kind: "success" },
       { text: "  warning: No Rojo project file (*.project.json) found. (rojo-config)", kind: "accent" },
@@ -171,20 +171,23 @@ export const FEATURES = [
   },
 ]
 
-export const CONFIG_SOURCE = `[project]
-name = "my-game"
+export const CONFIG_SOURCE = `return {
+  project = {
+    name = "my-game",
+  },
 
-[install]
-tools    = true
-packages = true
+  commands = {
+    dev = {
+      "rojo sourcemap default.project.json --output sourcemap.json",
+      "rojo serve default.project.json",
+    },
+    lint = "selene src",
+  },
 
-[commands]
-dev    = ["rojo sourcemap default.project.json --output sourcemap.json", "rojo serve default.project.json"]
-build  = "rojo build default.project.json --output build.rbxl"
-lint   = "selene src"
-format = "stylua src"
-test   = "lune run test"
-
-[tasks]
-check = ["luu lint", "luu format", "luu test"]
-ci    = ["luu install --tools", "luu run check"]`
+  tasks = {
+    check = {
+      "luu lint",
+      "luu format",
+    },
+  },
+}`

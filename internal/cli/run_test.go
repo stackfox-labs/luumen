@@ -36,7 +36,7 @@ func TestRunCommandExecutesNamedTask(t *testing.T) {
 
 	err := executeRunCommand(runCommandDeps{
 		detectWorkspace: func(_ string) (workspace.Workspace, error) {
-			return workspace.Workspace{RootPath: "repo", HasLuumenConfig: true, LuumenConfigPath: "repo/luumen.toml"}, nil
+			return workspace.Workspace{RootPath: "repo", HasLuumenConfig: true, LuumenConfigPath: "repo/" + workspace.LuumenConfigFile}, nil
 		},
 		loadConfig: func(_ string) (*config.Config, error) {
 			return cfg, nil
@@ -73,7 +73,7 @@ func TestRunCommandRequiresLuumenConfig(t *testing.T) {
 		taskRunner: &fakeTaskRunner{},
 	}, "build")
 	if err == nil {
-		t.Fatal("expected missing luumen.toml error")
+		t.Fatal("expected missing config error")
 	}
 	if !strings.Contains(err.Error(), workspace.LuumenConfigFile) {
 		t.Fatalf("expected missing config guidance, got: %v", err)
@@ -88,7 +88,7 @@ func TestRunCommandTaskFailurePropagates(t *testing.T) {
 
 	err := executeRunCommand(runCommandDeps{
 		detectWorkspace: func(_ string) (workspace.Workspace, error) {
-			return workspace.Workspace{RootPath: "repo", HasLuumenConfig: true, LuumenConfigPath: "repo/luumen.toml"}, nil
+			return workspace.Workspace{RootPath: "repo", HasLuumenConfig: true, LuumenConfigPath: "repo/" + workspace.LuumenConfigFile}, nil
 		},
 		loadConfig: func(_ string) (*config.Config, error) {
 			return &config.Config{Tasks: map[string]config.TaskValue{"build": config.NewTaskValue("rojo build")}}, nil
@@ -108,7 +108,7 @@ func TestRunCommandGuidesWhenNameExistsInCommandsSection(t *testing.T) {
 
 	err := executeRunCommand(runCommandDeps{
 		detectWorkspace: func(_ string) (workspace.Workspace, error) {
-			return workspace.Workspace{RootPath: "repo", HasLuumenConfig: true, LuumenConfigPath: "repo/luumen.toml"}, nil
+			return workspace.Workspace{RootPath: "repo", HasLuumenConfig: true, LuumenConfigPath: "repo/" + workspace.LuumenConfigFile}, nil
 		},
 		loadConfig: func(_ string) (*config.Config, error) {
 			return &config.Config{
@@ -119,9 +119,9 @@ func TestRunCommandGuidesWhenNameExistsInCommandsSection(t *testing.T) {
 		taskRunner: tasks.NewEngine(nil, "luu"),
 	}, "lint")
 	if err == nil {
-		t.Fatal("expected guidance error for [commands] misuse")
+		t.Fatal("expected guidance error for commands misuse")
 	}
-	if !strings.Contains(err.Error(), "defined under [commands]") || !strings.Contains(err.Error(), "[tasks]") {
+	if !strings.Contains(err.Error(), "defined under commands") || !strings.Contains(err.Error(), "executes tasks") {
 		t.Fatalf("expected actionable section guidance, got: %v", err)
 	}
 }

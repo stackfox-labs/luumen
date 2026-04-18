@@ -15,7 +15,7 @@ export function GettingStarted() {
           </p>
           <p className="text-[#999] text-[16px] leading-relaxed">
             Works in any repo using Rojo, Wally, or Rokit - even without a{" "}
-            <code className="font-mono text-[14px] text-[#666]">luumen.toml</code>.
+            <code className="font-mono text-[14px] text-[#666]">project.config.luau</code>.
           </p>
         </div>
 

@@ -6,29 +6,38 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
+	"unicode"
 
-	toml "github.com/pelletier/go-toml/v2"
+	"github.com/Wh1teSlash/luau-parser/ast"
+	"github.com/Wh1teSlash/luau-parser/lexer"
+	"github.com/Wh1teSlash/luau-parser/parser"
 )
 
-const FileName = "luumen.toml"
+const FileName = "project.config.luau"
 
-var ErrConfigNotFound = errors.New("luumen.toml not found")
+var ErrConfigNotFound = errors.New("project.config.luau not found")
 
 type Config struct {
 	Project  ProjectConfig
 	Install  InstallConfig
+	Tools    map[string]string
+	Packages map[string]string
 	Commands map[string]TaskValue
 	Tasks    map[string]TaskValue
 }
 
 type ProjectConfig struct {
-	Name string `toml:"name,omitempty"`
+	Name        string
+	Version     string
+	Author      string
+	Description string
 }
 
 type InstallConfig struct {
-	Tools    bool `toml:"tools,omitempty"`
-	Packages bool `toml:"packages,omitempty"`
+	Tools    bool
+	Packages bool
 }
 
 type TaskValue struct {
@@ -47,17 +56,14 @@ func (v TaskValue) AsRawValue() any {
 	case 1:
 		return v.Commands[0]
 	default:
-		copied := append([]string(nil), v.Commands...)
-		return copied
+		return append([]string(nil), v.Commands...)
 	}
 }
 
-type rawConfig struct {
-	Project  ProjectConfig  `toml:"project,omitempty"`
-	Install  InstallConfig  `toml:"install,omitempty"`
-	Commands map[string]any `toml:"commands,omitempty"`
-	Tasks    map[string]any `toml:"tasks,omitempty"`
-}
+type dataValue interface{}
+
+type dataObject map[string]dataValue
+type dataArray []dataValue
 
 func Load(path string) (*Config, error) {
 	if path == "" {
@@ -72,12 +78,7 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to read %s: %w", path, err)
 	}
 
-	var raw rawConfig
-	if err := toml.Unmarshal(contents, &raw); err != nil {
-		return nil, fmt.Errorf("failed to parse %s: %w", filepath.Base(path), err)
-	}
-
-	cfg, err := fromRaw(raw)
+	cfg, err := decode(contents)
 	if err != nil {
 		return nil, fmt.Errorf("invalid %s: %w", filepath.Base(path), err)
 	}
@@ -97,17 +98,12 @@ func Write(path string, cfg *Config) error {
 		return errors.New("config is nil")
 	}
 
-	raw, err := toRaw(cfg)
-	if err != nil {
-		return err
-	}
-
-	output, err := toml.Marshal(raw)
+	output, err := encode(cfg)
 	if err != nil {
 		return fmt.Errorf("failed to encode %s: %w", filepath.Base(path), err)
 	}
 
-	if err := os.WriteFile(path, output, 0o644); err != nil {
+	if err := os.WriteFile(path, []byte(output), 0o644); err != nil {
 		return fmt.Errorf("failed to write %s: %w", path, err)
 	}
 
@@ -118,55 +114,383 @@ func WriteToDir(dir string, cfg *Config) error {
 	return Write(filepath.Join(dir, FileName), cfg)
 }
 
-func fromRaw(raw rawConfig) (*Config, error) {
-	commands, err := normalizeTaskMap("commands", raw.Commands)
+func decode(contents []byte) (*Config, error) {
+	root, err := parseRootObject(string(contents))
+	if err != nil {
+		return nil, err
+	}
+	return fromDataObject(root)
+}
+
+func parseRootObject(source string) (dataObject, error) {
+	factory := ast.NewFactory()
+	defer factory.Reset()
+
+	p := parser.New(lexer.New(source), factory)
+	program := p.ParseProgram()
+	if parseErrors := p.Errors(); len(parseErrors) > 0 {
+		return nil, fmt.Errorf("invalid Luau syntax: %s", joinParseErrors(parseErrors))
+	}
+
+	meaningful := make([]ast.Stmt, 0, len(program.Body))
+	for _, stmt := range program.Body {
+		switch stmt.(type) {
+		case *ast.Comment, *ast.EmptyStatement:
+			continue
+		default:
+			meaningful = append(meaningful, stmt)
+		}
+	}
+
+	if len(meaningful) != 1 {
+		return nil, errors.New("config must contain exactly one top-level return statement")
+	}
+
+	ret, ok := meaningful[0].(*ast.ReturnStatement)
+	if !ok {
+		return nil, errors.New("config must contain a top-level return statement")
+	}
+	if len(ret.Values) != 1 {
+		return nil, configError(ret, "return statement must return exactly one table")
+	}
+
+	value, err := decodeExpr(ret.Values[0])
 	if err != nil {
 		return nil, err
 	}
 
-	tasks, err := normalizeTaskMap("tasks", raw.Tasks)
+	root, ok := value.(dataObject)
+	if !ok {
+		return nil, configError(ret.Values[0], "return statement must return a table")
+	}
+
+	return root, nil
+}
+
+func joinParseErrors(errs []error) string {
+	if len(errs) == 0 {
+		return ""
+	}
+	parts := make([]string, 0, len(errs))
+	for _, err := range errs {
+		parts = append(parts, err.Error())
+	}
+	return strings.Join(parts, "; ")
+}
+
+func decodeExpr(expr ast.Expr) (dataValue, error) {
+	expr = unwrapParenExpr(expr)
+
+	switch node := expr.(type) {
+	case *ast.Literal:
+		switch node.Type {
+		case "string":
+			value, ok := node.Value.(string)
+			if !ok {
+				return nil, configError(node, "string literal has unexpected value")
+			}
+			return value, nil
+		case "boolean":
+			value, ok := node.Value.(bool)
+			if !ok {
+				return nil, configError(node, "boolean literal has unexpected value")
+			}
+			return value, nil
+		case "number":
+			switch value := node.Value.(type) {
+			case int64:
+				return value, nil
+			case float64:
+				return value, nil
+			default:
+				return nil, configError(node, "number literal has unexpected value")
+			}
+		case "nil":
+			return nil, configError(node, "nil values are not supported in config")
+		default:
+			return nil, configError(node, fmt.Sprintf("unsupported literal type %q", node.Type))
+		}
+	case *ast.TableLiteral:
+		return decodeTableLiteral(node)
+	case *ast.Identifier:
+		return nil, configError(node, "identifier references are not allowed in config")
+	case *ast.BinaryOp, *ast.UnaryOp, *ast.TypeCast, *ast.FieldAccess, *ast.IndexAccess, *ast.IfExpr, *ast.InterpolatedString:
+		return nil, configError(expr, "computed expressions are not allowed in config")
+	case *ast.FunctionCall, *ast.MethodCall:
+		return nil, configError(expr, "function calls are not allowed in config")
+	case *ast.FunctionExpr:
+		return nil, configError(expr, "functions are not allowed in config")
+	case *ast.VarArgs:
+		return nil, configError(expr, "varargs are not allowed in config")
+	default:
+		return nil, configError(expr, "unsupported expression in config")
+	}
+}
+
+func decodeTableLiteral(node *ast.TableLiteral) (dataValue, error) {
+	if len(node.Fields) == 0 {
+		return dataObject{}, nil
+	}
+
+	hasNamed := false
+	hasArray := false
+	for _, field := range node.Fields {
+		if field.Key == nil {
+			hasArray = true
+			continue
+		}
+		hasNamed = true
+	}
+
+	if hasNamed && hasArray {
+		return nil, configError(node, "mixed keyed and array table fields are not supported")
+	}
+
+	if hasArray {
+		values := make(dataArray, 0, len(node.Fields))
+		for _, field := range node.Fields {
+			value, err := decodeExpr(field.Value)
+			if err != nil {
+				return nil, err
+			}
+			values = append(values, value)
+		}
+		return values, nil
+	}
+
+	values := make(dataObject, len(node.Fields))
+	for _, field := range node.Fields {
+		key, err := decodeTableKey(field.Key)
+		if err != nil {
+			return nil, err
+		}
+		if _, exists := values[key]; exists {
+			return nil, configError(field.Key, fmt.Sprintf("duplicate key %q", key))
+		}
+
+		value, err := decodeExpr(field.Value)
+		if err != nil {
+			return nil, err
+		}
+		values[key] = value
+	}
+
+	return values, nil
+}
+
+func decodeTableKey(expr ast.Expr) (string, error) {
+	expr = unwrapParenExpr(expr)
+
+	switch node := expr.(type) {
+	case *ast.Literal:
+		if node.Type != "string" {
+			return "", configError(node, "table keys must be strings or identifiers")
+		}
+		value, ok := node.Value.(string)
+		if !ok {
+			return "", configError(node, "string table key has unexpected value")
+		}
+		if strings.TrimSpace(value) == "" {
+			return "", configError(node, "table keys must not be empty")
+		}
+		return value, nil
+	case *ast.Identifier:
+		return "", configError(node, "identifier references are not allowed as table keys")
+	default:
+		return "", configError(expr, "table keys must be strings or identifiers")
+	}
+}
+
+func unwrapParenExpr(expr ast.Expr) ast.Expr {
+	for {
+		paren, ok := expr.(*ast.ParenExpr)
+		if !ok {
+			return expr
+		}
+		expr = paren.Expr
+	}
+}
+
+func fromDataObject(root dataObject) (*Config, error) {
+	cfg := &Config{}
+
+	allowedSections := map[string]struct{}{
+		"project":  {},
+		"install":  {},
+		"tools":    {},
+		"packages": {},
+		"commands": {},
+		"tasks":    {},
+	}
+
+	for _, key := range sortedObjectKeys(root) {
+		if _, ok := allowedSections[key]; !ok {
+			return nil, fmt.Errorf("unknown top-level section %q", key)
+		}
+	}
+
+	project, err := parseProjectSection(root["project"])
 	if err != nil {
 		return nil, err
 	}
+	cfg.Project = project
 
-	return &Config{
-		Project:  raw.Project,
-		Install:  raw.Install,
-		Commands: commands,
-		Tasks:    tasks,
-	}, nil
+	install, err := parseInstallSection(root["install"])
+	if err != nil {
+		return nil, err
+	}
+	cfg.Install = install
+
+	tools, err := parseStringMapSection("tools", root["tools"])
+	if err != nil {
+		return nil, err
+	}
+	cfg.Tools = tools
+
+	packages, err := parseStringMapSection("packages", root["packages"])
+	if err != nil {
+		return nil, err
+	}
+	cfg.Packages = packages
+
+	commands, err := parseTaskMapSection("commands", root["commands"])
+	if err != nil {
+		return nil, err
+	}
+	cfg.Commands = commands
+
+	tasks, err := parseTaskMapSection("tasks", root["tasks"])
+	if err != nil {
+		return nil, err
+	}
+	cfg.Tasks = tasks
+
+	return cfg, nil
 }
 
-func toRaw(cfg *Config) (rawConfig, error) {
-	commands, err := denormalizeTaskMap("commands", cfg.Commands)
-	if err != nil {
-		return rawConfig{}, err
+func parseProjectSection(value dataValue) (ProjectConfig, error) {
+	if value == nil {
+		return ProjectConfig{}, nil
 	}
 
-	tasks, err := denormalizeTaskMap("tasks", cfg.Tasks)
-	if err != nil {
-		return rawConfig{}, err
+	object, ok := value.(dataObject)
+	if !ok {
+		return ProjectConfig{}, errors.New("project must be a table")
 	}
 
-	return rawConfig{
-		Project:  cfg.Project,
-		Install:  cfg.Install,
-		Commands: commands,
-		Tasks:    tasks,
-	}, nil
+	cfg := ProjectConfig{}
+	allowedKeys := map[string]struct{}{
+		"name":        {},
+		"version":     {},
+		"author":      {},
+		"description": {},
+	}
+
+	for _, key := range sortedObjectKeys(object) {
+		if _, ok := allowedKeys[key]; !ok {
+			return ProjectConfig{}, fmt.Errorf("project.%s is not supported", key)
+		}
+
+		stringValue, err := requireString("project."+key, object[key])
+		if err != nil {
+			return ProjectConfig{}, err
+		}
+
+		switch key {
+		case "name":
+			cfg.Name = stringValue
+		case "version":
+			cfg.Version = stringValue
+		case "author":
+			cfg.Author = stringValue
+		case "description":
+			cfg.Description = stringValue
+		}
+	}
+
+	return cfg, nil
 }
 
-func normalizeTaskMap(scope string, values map[string]any) (map[string]TaskValue, error) {
-	if len(values) == 0 {
+func parseInstallSection(value dataValue) (InstallConfig, error) {
+	if value == nil {
+		return InstallConfig{}, nil
+	}
+
+	object, ok := value.(dataObject)
+	if !ok {
+		return InstallConfig{}, errors.New("install must be a table")
+	}
+
+	cfg := InstallConfig{}
+	allowedKeys := map[string]struct{}{
+		"tools":    {},
+		"packages": {},
+	}
+
+	for _, key := range sortedObjectKeys(object) {
+		if _, ok := allowedKeys[key]; !ok {
+			return InstallConfig{}, fmt.Errorf("install.%s is not supported", key)
+		}
+
+		booleanValue, err := requireBool("install."+key, object[key])
+		if err != nil {
+			return InstallConfig{}, err
+		}
+
+		switch key {
+		case "tools":
+			cfg.Tools = booleanValue
+		case "packages":
+			cfg.Packages = booleanValue
+		}
+	}
+
+	return cfg, nil
+}
+
+func parseStringMapSection(scope string, value dataValue) (map[string]string, error) {
+	if value == nil {
 		return nil, nil
 	}
 
-	normalized := make(map[string]TaskValue, len(values))
-	keys := sortedKeys(values)
-	for _, key := range keys {
-		task, err := parseTaskValue(values[key])
+	object, ok := value.(dataObject)
+	if !ok {
+		return nil, fmt.Errorf("%s must be a table", scope)
+	}
+	if len(object) == 0 {
+		return nil, nil
+	}
+
+	normalized := make(map[string]string, len(object))
+	for _, key := range sortedObjectKeys(object) {
+		stringValue, err := requireString(scope+"."+key, object[key])
 		if err != nil {
-			return nil, fmt.Errorf("%s.%s: %w", scope, key, err)
+			return nil, err
+		}
+		normalized[key] = stringValue
+	}
+
+	return normalized, nil
+}
+
+func parseTaskMapSection(scope string, value dataValue) (map[string]TaskValue, error) {
+	if value == nil {
+		return nil, nil
+	}
+
+	object, ok := value.(dataObject)
+	if !ok {
+		return nil, fmt.Errorf("%s must be a table", scope)
+	}
+	if len(object) == 0 {
+		return nil, nil
+	}
+
+	normalized := make(map[string]TaskValue, len(object))
+	for _, key := range sortedObjectKeys(object) {
+		task, err := parseTaskValue(scope+"."+key, object[key])
+		if err != nil {
+			return nil, err
 		}
 		normalized[key] = task
 	}
@@ -174,65 +498,47 @@ func normalizeTaskMap(scope string, values map[string]any) (map[string]TaskValue
 	return normalized, nil
 }
 
-func denormalizeTaskMap(scope string, values map[string]TaskValue) (map[string]any, error) {
-	if len(values) == 0 {
-		return nil, nil
-	}
-
-	raw := make(map[string]any, len(values))
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-
-	for _, key := range keys {
-		task := values[key]
-		normalized, err := normalizeCommandList(task.Commands)
-		if err != nil {
-			return nil, fmt.Errorf("%s.%s: %w", scope, key, err)
-		}
-		if len(normalized) == 1 {
-			raw[key] = normalized[0]
-			continue
-		}
-		raw[key] = normalized
-	}
-
-	return raw, nil
-}
-
-func parseTaskValue(value any) (TaskValue, error) {
+func parseTaskValue(path string, value dataValue) (TaskValue, error) {
 	switch typed := value.(type) {
 	case string:
 		commands, err := normalizeCommandList([]string{typed})
 		if err != nil {
-			return TaskValue{}, err
+			return TaskValue{}, fmt.Errorf("%s: %w", path, err)
 		}
 		return TaskValue{Commands: commands}, nil
-	case []string:
-		commands, err := normalizeCommandList(typed)
-		if err != nil {
-			return TaskValue{}, err
-		}
-		return TaskValue{Commands: commands}, nil
-	case []any:
+	case dataArray:
 		commands := make([]string, 0, len(typed))
 		for index, item := range typed {
 			command, ok := item.(string)
 			if !ok {
-				return TaskValue{}, fmt.Errorf("array item %d must be a string", index)
+				return TaskValue{}, fmt.Errorf("%s[%d]: expected a string", path, index)
 			}
 			commands = append(commands, command)
 		}
 		normalized, err := normalizeCommandList(commands)
 		if err != nil {
-			return TaskValue{}, err
+			return TaskValue{}, fmt.Errorf("%s: %w", path, err)
 		}
 		return TaskValue{Commands: normalized}, nil
 	default:
-		return TaskValue{}, errors.New("expected a string or array of strings")
+		return TaskValue{}, fmt.Errorf("%s: expected a string or array of strings", path)
 	}
+}
+
+func requireString(path string, value dataValue) (string, error) {
+	stringValue, ok := value.(string)
+	if !ok {
+		return "", fmt.Errorf("%s: expected a string", path)
+	}
+	return stringValue, nil
+}
+
+func requireBool(path string, value dataValue) (bool, error) {
+	booleanValue, ok := value.(bool)
+	if !ok {
+		return false, fmt.Errorf("%s: expected a boolean", path)
+	}
+	return booleanValue, nil
 }
 
 func normalizeCommandList(commands []string) ([]string, error) {
@@ -252,11 +558,230 @@ func normalizeCommandList(commands []string) ([]string, error) {
 	return normalized, nil
 }
 
-func sortedKeys(values map[string]any) []string {
+func sortedObjectKeys(values dataObject) []string {
 	keys := make([]string, 0, len(values))
 	for key := range values {
 		keys = append(keys, key)
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+func configError(node ast.Node, message string) error {
+	pos := node.Pos()
+	if pos.Line == 0 && pos.Column == 0 {
+		return errors.New(message)
+	}
+	return fmt.Errorf("%s at line %d, col %d", message, pos.Line, pos.Column)
+}
+
+type objectEntry struct {
+	key   string
+	value any
+}
+
+func encode(cfg *Config) (string, error) {
+	topLevel := make([]objectEntry, 0, 6)
+
+	if project := encodeProject(cfg.Project); len(project) > 0 {
+		topLevel = append(topLevel, objectEntry{key: "project", value: project})
+	}
+	if install := encodeInstall(cfg.Install); len(install) > 0 {
+		topLevel = append(topLevel, objectEntry{key: "install", value: install})
+	}
+	if tools := encodeStringMap(cfg.Tools); len(tools) > 0 {
+		topLevel = append(topLevel, objectEntry{key: "tools", value: tools})
+	}
+	if packages := encodeStringMap(cfg.Packages); len(packages) > 0 {
+		topLevel = append(topLevel, objectEntry{key: "packages", value: packages})
+	}
+	if commands, err := encodeTaskMap("commands", cfg.Commands); err != nil {
+		return "", err
+	} else if len(commands) > 0 {
+		topLevel = append(topLevel, objectEntry{key: "commands", value: commands})
+	}
+	if tasks, err := encodeTaskMap("tasks", cfg.Tasks); err != nil {
+		return "", err
+	} else if len(tasks) > 0 {
+		topLevel = append(topLevel, objectEntry{key: "tasks", value: tasks})
+	}
+
+	var builder strings.Builder
+	builder.WriteString("return ")
+	writeObject(&builder, topLevel, 0)
+	builder.WriteString("\n")
+	return builder.String(), nil
+}
+
+func encodeProject(project ProjectConfig) []objectEntry {
+	entries := make([]objectEntry, 0, 4)
+	if strings.TrimSpace(project.Name) != "" {
+		entries = append(entries, objectEntry{key: "name", value: project.Name})
+	}
+	if strings.TrimSpace(project.Version) != "" {
+		entries = append(entries, objectEntry{key: "version", value: project.Version})
+	}
+	if strings.TrimSpace(project.Author) != "" {
+		entries = append(entries, objectEntry{key: "author", value: project.Author})
+	}
+	if strings.TrimSpace(project.Description) != "" {
+		entries = append(entries, objectEntry{key: "description", value: project.Description})
+	}
+	return entries
+}
+
+func encodeInstall(install InstallConfig) []objectEntry {
+	entries := make([]objectEntry, 0, 2)
+	if install.Tools {
+		entries = append(entries, objectEntry{key: "tools", value: true})
+	}
+	if install.Packages {
+		entries = append(entries, objectEntry{key: "packages", value: true})
+	}
+	return entries
+}
+
+func encodeStringMap(values map[string]string) []objectEntry {
+	if len(values) == 0 {
+		return nil
+	}
+
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	entries := make([]objectEntry, 0, len(keys))
+	for _, key := range keys {
+		entries = append(entries, objectEntry{key: key, value: values[key]})
+	}
+	return entries
+}
+
+func encodeTaskMap(scope string, values map[string]TaskValue) ([]objectEntry, error) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+
+	keys := make([]string, 0, len(values))
+	for key := range values {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+
+	entries := make([]objectEntry, 0, len(keys))
+	for _, key := range keys {
+		commands, err := normalizeCommandList(values[key].Commands)
+		if err != nil {
+			return nil, fmt.Errorf("%s.%s: %w", scope, key, err)
+		}
+		if len(commands) == 1 {
+			entries = append(entries, objectEntry{key: key, value: commands[0]})
+			continue
+		}
+		entries = append(entries, objectEntry{key: key, value: commands})
+	}
+
+	return entries, nil
+}
+
+func writeObject(builder *strings.Builder, entries []objectEntry, indent int) {
+	if len(entries) == 0 {
+		builder.WriteString("{}")
+		return
+	}
+
+	builder.WriteString("{\n")
+	for index, entry := range entries {
+		builder.WriteString(strings.Repeat("    ", indent+1))
+		writeKey(builder, entry.key)
+		builder.WriteString(" = ")
+		writeValue(builder, entry.value, indent+1)
+		builder.WriteString(",\n")
+		if index == len(entries)-1 {
+			continue
+		}
+	}
+	builder.WriteString(strings.Repeat("    ", indent))
+	builder.WriteString("}")
+}
+
+func writeValue(builder *strings.Builder, value any, indent int) {
+	switch typed := value.(type) {
+	case string:
+		builder.WriteString(strconv.Quote(typed))
+	case bool:
+		if typed {
+			builder.WriteString("true")
+		} else {
+			builder.WriteString("false")
+		}
+	case int:
+		builder.WriteString(strconv.Itoa(typed))
+	case int64:
+		builder.WriteString(strconv.FormatInt(typed, 10))
+	case float64:
+		builder.WriteString(strconv.FormatFloat(typed, 'f', -1, 64))
+	case []string:
+		writeStringArray(builder, typed, indent)
+	case []objectEntry:
+		writeObject(builder, typed, indent)
+	default:
+		builder.WriteString("nil")
+	}
+}
+
+func writeStringArray(builder *strings.Builder, values []string, indent int) {
+	if len(values) == 0 {
+		builder.WriteString("{}")
+		return
+	}
+
+	builder.WriteString("{\n")
+	for _, value := range values {
+		builder.WriteString(strings.Repeat("    ", indent+1))
+		builder.WriteString(strconv.Quote(value))
+		builder.WriteString(",\n")
+	}
+	builder.WriteString(strings.Repeat("    ", indent))
+	builder.WriteString("}")
+}
+
+func writeKey(builder *strings.Builder, key string) {
+	if isIdentifierKey(key) {
+		builder.WriteString(key)
+		return
+	}
+	builder.WriteString("[")
+	builder.WriteString(strconv.Quote(key))
+	builder.WriteString("]")
+}
+
+func isIdentifierKey(key string) bool {
+	if key == "" || luauKeywords[key] {
+		return false
+	}
+
+	for index, r := range key {
+		if index == 0 {
+			if r != '_' && !unicode.IsLetter(r) {
+				return false
+			}
+			continue
+		}
+
+		if r != '_' && !unicode.IsLetter(r) && !unicode.IsDigit(r) {
+			return false
+		}
+	}
+
+	return true
+}
+
+var luauKeywords = map[string]bool{
+	"and": true, "break": true, "continue": true, "do": true, "else": true, "elseif": true,
+	"end": true, "export": true, "false": true, "for": true, "function": true, "if": true,
+	"in": true, "local": true, "nil": true, "not": true, "or": true, "repeat": true,
+	"return": true, "then": true, "true": true, "type": true, "until": true, "while": true,
 }

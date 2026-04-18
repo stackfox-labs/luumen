@@ -29,7 +29,7 @@ func TestCreateFreshProject(t *testing.T) {
 	}
 
 	requiredFiles := []string{
-		filepath.Join(target, "luumen.toml"),
+		filepath.Join(target, config.FileName),
 		filepath.Join(target, "rokit.toml"),
 		filepath.Join(target, "wally.toml"),
 		filepath.Join(target, "default.project.json"),
@@ -42,9 +42,9 @@ func TestCreateFreshProject(t *testing.T) {
 		}
 	}
 
-	cfg, err := config.Load(filepath.Join(target, "luumen.toml"))
+	cfg, err := config.Load(filepath.Join(target, config.FileName))
 	if err != nil {
-		t.Fatalf("expected luumen.toml to load, got: %v", err)
+		t.Fatalf("expected %s to load, got: %v", config.FileName, err)
 	}
 	if cfg.Project.Name != "my-game" {
 		t.Fatalf("expected project name my-game, got %q", cfg.Project.Name)
@@ -88,8 +88,8 @@ func TestCreateNoInstall(t *testing.T) {
 		t.Fatalf("expected create --no-install success, got: %v", err)
 	}
 
-	if _, statErr := os.Stat(filepath.Join(target, "luumen.toml")); statErr != nil {
-		t.Fatalf("expected luumen.toml to exist, got: %v", statErr)
+	if _, statErr := os.Stat(filepath.Join(target, config.FileName)); statErr != nil {
+		t.Fatalf("expected %s to exist, got: %v", config.FileName, statErr)
 	}
 	if rokit.calls != 0 || wally.calls != 0 {
 		t.Fatalf("expected installers to be skipped, got rokit=%d wally=%d", rokit.calls, wally.calls)
@@ -119,8 +119,8 @@ func TestCreateInteractiveNoFlags(t *testing.T) {
 		t.Fatalf("expected interactive create success, got: %v", err)
 	}
 
-	if _, err := os.Stat(filepath.Join(target, "luumen.toml")); err != nil {
-		t.Fatalf("expected luumen.toml in interactive scaffold, got: %v", err)
+	if _, err := os.Stat(filepath.Join(target, config.FileName)); err != nil {
+		t.Fatalf("expected %s in interactive scaffold, got: %v", config.FileName, err)
 	}
 	if rokit.calls != 0 || wally.calls != 0 {
 		t.Fatalf("expected installers skipped after interactive no choice, got rokit=%d wally=%d", rokit.calls, wally.calls)
@@ -154,9 +154,9 @@ func TestCreateRojoWallyTemplateScaffoldsClient(t *testing.T) {
 		t.Fatalf("expected rojo-wally template client entrypoint, got: %v", err)
 	}
 
-	cfg, err := config.Load(filepath.Join(target, "luumen.toml"))
+	cfg, err := config.Load(filepath.Join(target, config.FileName))
 	if err != nil {
-		t.Fatalf("expected luumen.toml to load, got: %v", err)
+		t.Fatalf("expected %s to load, got: %v", config.FileName, err)
 	}
 	if _, ok := cfg.Tasks["check"]; !ok {
 		t.Fatalf("expected rojo-wally template check task, got %+v", cfg.Tasks)

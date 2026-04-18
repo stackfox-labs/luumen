@@ -85,7 +85,7 @@ func TestLintUsesCommandOverride(t *testing.T) {
 	runner := &fakeWorkflowRunner{}
 	err := executeWorkflowCommand(t, newLintCmd(workflowCommandDeps{
 		detectWorkspace: func(_ string) (workspace.Workspace, error) {
-			return workspace.Workspace{RootPath: "repo", HasLuumenConfig: true, LuumenConfigPath: "repo/luumen.toml"}, nil
+			return workspace.Workspace{RootPath: "repo", HasLuumenConfig: true, LuumenConfigPath: "repo/" + workspace.LuumenConfigFile}, nil
 		},
 		loadConfig: func(_ string) (*config.Config, error) {
 			return &config.Config{Commands: map[string]config.TaskValue{"lint": config.NewTaskValue("selene src")}}, nil
@@ -108,7 +108,7 @@ func TestLintRequiresConfiguredCommand(t *testing.T) {
 
 	err := executeWorkflowCommand(t, newLintCmd(workflowCommandDeps{
 		detectWorkspace: func(_ string) (workspace.Workspace, error) {
-			return workspace.Workspace{RootPath: "repo", HasLuumenConfig: true, LuumenConfigPath: "repo/luumen.toml"}, nil
+			return workspace.Workspace{RootPath: "repo", HasLuumenConfig: true, LuumenConfigPath: "repo/" + workspace.LuumenConfigFile}, nil
 		},
 		loadConfig: func(_ string) (*config.Config, error) {
 			return &config.Config{}, nil
@@ -118,7 +118,7 @@ func TestLintRequiresConfiguredCommand(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected lint configuration error")
 	}
-	if !strings.Contains(err.Error(), "[commands].lint") {
+	if !strings.Contains(err.Error(), "commands.lint") {
 		t.Fatalf("expected actionable lint configuration guidance, got: %v", err)
 	}
 }

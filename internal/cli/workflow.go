@@ -192,7 +192,7 @@ func resolveBuiltInCommandSequence(commandName string, cfg *config.Config, state
 		}
 		return commands, nil
 	default:
-		return nil, fmt.Errorf("command %q is not configured. Next: define [commands].%s in %s", commandName, commandName, workspace.LuumenConfigFile)
+		return nil, fmt.Errorf("command %q is not configured. Next: define commands.%s in %s", commandName, commandName, workspace.LuumenConfigFile)
 	}
 }
 
@@ -242,7 +242,7 @@ func loadWorkflowContext(deps workflowCommandDeps) (workspace.Workspace, *config
 
 func resolveDefaultRojoProjectPath(state workspace.Workspace) (string, error) {
 	if !state.HasRojoProject || len(state.RojoProjectPaths) == 0 {
-		return "", fmt.Errorf("default implementation for this command requires a project file (*.project.json) in %s. Next: add default.project.json or define [commands] override", state.RootPath)
+		return "", fmt.Errorf("default implementation for this command requires a project file (*.project.json) in %s. Next: add default.project.json or define a commands override", state.RootPath)
 	}
 	path, err := toRelativeConfigPath(state.RootPath, state.RojoProjectPaths[0])
 	if err != nil {
@@ -265,7 +265,7 @@ func resolveDefaultRojoProjectPathForPlan(state workspace.Workspace) (string, bo
 }
 
 func missingDefaultRojoProjectError(commandName string, state workspace.Workspace) error {
-	return fmt.Errorf("no Rojo project file (*.project.json) was found in %s, so the default %q implementation cannot run. Next: add default.project.json or define [commands].%s in %s", state.RootPath, commandName, commandName, workspace.LuumenConfigFile)
+	return fmt.Errorf("no Rojo project file (*.project.json) was found in %s, so the default %q implementation cannot run. Next: add default.project.json or define commands.%s in %s", state.RootPath, commandName, commandName, workspace.LuumenConfigFile)
 }
 
 func runSyntheticCommandTask(ctx context.Context, runner taskRunner, commandName string, commands []string, options tasks.RunOptions) error {

@@ -104,18 +104,53 @@ luu add pkg:sleitnick/knit
 
 ## Configuration
 
-Luumen uses a repo config file named:
+Luumen uses a shared Luau config file:
 
 ```text
-luumen.toml
+project.config.luau
 ```
 
-This file is used for workflow and task configuration.
-It does not replace tool-specific config files such as:
+This file defines project-level workflows such as commands and tasks, using native Luau tables.
 
-* `rokit.toml`
-* `wally.toml`
-* Rojo project files
+Instead of spreading configuration across multiple formats, `project.config.luau` provides a single place to describe how your project runs.
+
+```lua
+return {
+    project = {
+        name = "my-game",
+    },
+
+    install = {
+        tools = true,
+        packages = true,
+    },
+
+    commands = {
+        dev = {
+            "rojo sourcemap default.project.json --output sourcemap.json",
+            "rojo serve default.project.json",
+        },
+        build = "rojo build default.project.json --output build.rbxl",
+        lint = "selene src",
+        format = "stylua src",
+        test = "lune run test",
+    },
+
+    tasks = {
+        check = {
+            "luu lint",
+            "luu format",
+            "luu test",
+        },
+    },
+}
+```
+
+`project.config.luau` is designed as a shared standard for the Luau ecosystem.
+
+Luumen reads from it, but other tools can adopt the same file and extend it with their own sections, allowing project configuration to live in one place instead of being split across multiple configs.
+
+Tool-specific files such as `rokit.toml`, `wally.toml`, and Rojo project files are still used by their respective tools.
 
 ## Status
 

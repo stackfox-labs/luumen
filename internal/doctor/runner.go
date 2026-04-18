@@ -56,7 +56,7 @@ func (r *Runner) Run(state workspace.Workspace) Report {
 
 	if state.HasLuumenConfig {
 		if _, err := config.Load(state.LuumenConfigPath); err != nil {
-			report.add(SeverityError, "luumen-config", fmt.Sprintf("Invalid %s: %v", workspace.LuumenConfigFile, err), "Fix luumen.toml syntax and field types.")
+			report.add(SeverityError, "luumen-config", fmt.Sprintf("Invalid %s: %v", workspace.LuumenConfigFile, err), "Fix project.config.luau syntax and field types.")
 		} else {
 			report.add(SeverityPass, "luumen-config", fmt.Sprintf("%s is valid.", workspace.LuumenConfigFile), "")
 		}
