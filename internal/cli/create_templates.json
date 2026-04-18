@@ -369,7 +369,7 @@
           "path": "rokit.toml",
           "contentLines": [
             "[tools]",
-            "lute = \"luau-lang/lute@0.1.0-nightly.20260327\"",
+            "lute = \"luau-lang/lute@1.0.0\"",
             "stylua = \"JohnnyMorganz/StyLua@2.4.0\""
           ]
         },
