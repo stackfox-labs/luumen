@@ -4,13 +4,15 @@
 
 # Luumen
 
-Luumen is a unified CLI for Roblox developers.
+Luumen is a unified CLI for Luau development.
 
-It provides one command surface for common project workflows while using the existing Roblox tooling ecosystem under the hood.
+It provides one command surface for common project workflows while using the existing Luau tooling ecosystem under the hood.
+
+Supports both Roblox workflows and standalone Luau runtimes.
 
 ## Why Luumen
 
-Roblox projects built outside Studio often rely on several separate tools for setup, dependency management, serving, builds, formatting, and linting.
+Luau projects built outside Studio often rely on several separate tools for setup, dependency management, serving, builds, formatting, and linting.
 
 Luumen exists to make those workflows easier to run and easier to standardize across repos.
 
@@ -22,7 +24,7 @@ Luumen works with the existing ecosystem:
 
 * **Rokit** for tool installation and management
 * **Wally** for package dependencies
-* **Rojo**, **Selene**, **StyLua**, **Lune**, and other tools for project workflows
+* **Rojo**, **Selene**, **StyLua**, **Lune**, **Lute**, and other tools for project workflows
 
 It does not replace those tools.
 

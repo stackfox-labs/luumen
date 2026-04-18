@@ -11,10 +11,10 @@ export function GettingStarted() {
           <p className="text-[#666] text-[18px] leading-relaxed mb-4">
             Install Luumen once, open a new terminal, then run{" "}
             <code className="font-mono text-[13px] bg-[#f4f4f4] border border-[#e5e5e5] text-[#333] px-1.5 py-0.5 rounded">luu help</code>{" "}
-            in any Roblox project.
+            in any Luau project.
           </p>
           <p className="text-[#999] text-[16px] leading-relaxed">
-            Works in any repo using Rojo, Wally, or Rokit - even without a{" "}
+            Works in any repo using Rojo, Wally, Rokit, or Lute - even without a{" "}
             <code className="font-mono text-[14px] text-[#666]">project.config.luau</code>.
           </p>
         </div>

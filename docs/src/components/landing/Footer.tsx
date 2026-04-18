@@ -32,7 +32,7 @@ export function Footer() {
         <div className="max-w-xs">
           <Logo variant="light" />
           <p className="text-white/25 text-sm leading-relaxed">
-            The unified CLI for Roblox filesystem-first development. Built for developers who build outside Studio.
+            The unified CLI for Luau development
           </p>
         </div>
 
@@ -65,7 +65,7 @@ export function Footer() {
       </div>
 
       <div className="px-16 pb-8 border-t border-white/[0.04] pt-6">
-        <p className="text-white/15 text-[11px] font-mono">© 2026 Luumen - Built for Roblox developers.</p>
+        <p className="text-white/15 text-[11px] font-mono">© 2026 Luumen - Built for Luau developers.</p>
       </div>
     </footer>
   )

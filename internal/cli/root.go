@@ -15,8 +15,8 @@ func NewRootCmd() *cobra.Command {
 
 	root := &cobra.Command{
 		Use:           "luu",
-		Short:         "Unified Roblox filesystem workflow CLI",
-		Long:          "Luumen orchestrates existing Roblox tooling (Rokit, Wally, and Rojo) through a single CLI.",
+		Short:         "Unified Luau workflow CLI",
+		Long:          "Luumen orchestrates existing Luau tooling (Rokit, Wally, Rojo, and Lute) through a single CLI.",
 		Version:       currentVersion(),
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -49,7 +49,7 @@ func NewRootCmd() *cobra.Command {
 	defaultHelp := root.HelpFunc()
 	root.SetHelpFunc(func(cmd *cobra.Command, args []string) {
 		writer := cmd.OutOrStdout()
-		fmt.Fprintf(writer, "%s %s\n", styleAccent(writer, cmd.Root().Use), styleMuted(writer, "unified Roblox workflow CLI"))
+		fmt.Fprintf(writer, "%s %s\n", styleAccent(writer, cmd.Root().Use), styleMuted(writer, "unified Luau workflow CLI"))
 		if cmd == root {
 			fmt.Fprintln(writer)
 		}

@@ -21,7 +21,7 @@ export function CTASection() {
           <h2 className="font-display text-[52px] md:text-[62px] font-bold text-white leading-[1.06] mb-6 tracking-[-0.01em]">
             Start building better
             <br />
-            Roblox repos today
+            Luau projects today
           </h2>
           <a
             href="#start"

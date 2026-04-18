@@ -1,8 +1,9 @@
 export function TrustedStack() {
   const tools = [
     { name: "Rojo", desc: "Filesystem sync to Studio" },
-    { name: "Wally", desc: "Package manager for Roblox" },
+    { name: "Wally", desc: "Package manager for Luau" },
     { name: "Rokit", desc: "Toolchain version manager" },
+    { name: "Lute", desc: "Standalone Luau runtime" },
     { name: "StyLua", desc: "Lua code formatter" },
     { name: "Selene", desc: "Lua static analyzer" },
   ]
@@ -14,7 +15,7 @@ export function TrustedStack() {
           <p className="text-[10px] font-mono text-[#bbb] uppercase tracking-[0.15em] mb-6">ECOSYSTEM</p>
           <h2 className="font-display text-[44px] font-bold text-[#0a0a0a] leading-tight mb-7">A trusted stack to standardize on</h2>
           <p className="text-[#666] text-[18px] leading-relaxed">
-            Luumen is built on the established open source tools the Roblox community already uses. It composes them - it does not replace them.
+            Luumen is built on the established open source tools the Luau community already uses. It composes them - it does not replace them.
           </p>
         </div>
         <div className="px-16 py-36">

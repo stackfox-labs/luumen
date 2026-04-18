@@ -60,7 +60,7 @@ export function CommandsShowcase() {
       <div className="pt-40 pb-20 text-center px-16">
         <h2 className="font-display text-[54px] font-bold text-white leading-tight mb-6">Everything you need in one tool</h2>
         <p className="text-white/35 text-[20px] max-w-[520px] mx-auto leading-relaxed">
-          Luumen unifies your entire Roblox workflow into a single, consistent command surface.
+          Luumen unifies your entire Luau workflow into a single, consistent command surface.
         </p>
       </div>
 

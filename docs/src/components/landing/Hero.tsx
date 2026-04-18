@@ -89,7 +89,7 @@ export function Hero() {
               backgroundRepeat: "no-repeat",
             }}
           >
-            Roblox development
+            Luau development
           </span>
         </h1>
 

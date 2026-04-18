@@ -5,7 +5,7 @@ export function OpenSourceSection() {
         <div className="max-w-2xl">
           <h2 className="font-display text-[56px] font-bold text-white leading-[1.04] mb-7">Free &amp; open source</h2>
           <p className="text-white/62 text-[34px] md:text-[17px] leading-relaxed mb-10 max-w-xl">
-            Luumen is free and open source, built in public by developers who care about better Roblox workflows.
+            Luumen is free and open source, built in public by developers who care about better Luau workflows.
           </p>
           <a
             href="https://github.com/stackfox-labs/luumen"
