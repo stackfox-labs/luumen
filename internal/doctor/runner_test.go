@@ -93,21 +93,42 @@ func TestRunnerMissingToolsAndPackages(t *testing.T) {
 func TestRunnerMissingRojoProjectWarning(t *testing.T) {
 	t.Parallel()
 
+	root := t.TempDir()
+	writeFile(t, filepath.Join(root, workspace.LuumenConfigFile), "return {\n    tasks = {\n        dev = \"rojo serve default.project.json\",\n    },\n}\n")
+
 	runner := NewRunner(func(_ string) (string, error) { return "ok", nil })
-	report := runner.Run(workspace.Workspace{RootPath: t.TempDir(), HasRojoProject: false})
+	report := runner.Run(workspace.Workspace{
+		RootPath:         root,
+		HasLuumenConfig:  true,
+		LuumenConfigPath: filepath.Join(root, workspace.LuumenConfigFile),
+		HasRojoProject:   false,
+	})
 
 	if report.Warnings == 0 {
 		t.Fatalf("expected warning for missing rojo project, got %#v", report.Results)
 	}
 	found := false
 	for _, result := range report.Results {
-		if result.ID == "rojo-config" && strings.Contains(strings.ToLower(result.Message), "no rojo project") {
+		if result.ID == "rojo-config" && strings.Contains(strings.ToLower(result.Message), "rojo project file not found") {
 			found = true
 			break
 		}
 	}
 	if !found {
 		t.Fatalf("expected rojo-config warning, got %#v", report.Results)
+	}
+}
+
+func TestRunnerNoRojoWarningForNonRojoProject(t *testing.T) {
+	t.Parallel()
+
+	runner := NewRunner(func(_ string) (string, error) { return "ok", nil })
+	report := runner.Run(workspace.Workspace{RootPath: t.TempDir(), HasRojoProject: false})
+
+	for _, result := range report.Results {
+		if result.ID == "rojo-config" {
+			t.Fatalf("expected no rojo-config result for non-rojo project, got %#v", result)
+		}
 	}
 }
 

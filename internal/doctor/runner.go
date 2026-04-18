@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 
 	toml "github.com/pelletier/go-toml/v2"
 
@@ -54,9 +55,13 @@ func NewRunner(lookPath func(string) (string, error)) *Runner {
 func (r *Runner) Run(state workspace.Workspace) Report {
 	report := Report{}
 
+	var cfg *config.Config
 	if state.HasLuumenConfig {
-		if _, err := config.Load(state.LuumenConfigPath); err != nil {
+		var err error
+		cfg, err = config.Load(state.LuumenConfigPath)
+		if err != nil {
 			report.add(SeverityError, "luumen-config", fmt.Sprintf("Invalid %s: %v", workspace.LuumenConfigFile, err), "Fix project.config.luau syntax and field types.")
+			cfg = nil
 		} else {
 			report.add(SeverityPass, "luumen-config", fmt.Sprintf("%s is valid.", workspace.LuumenConfigFile), "")
 		}
@@ -90,8 +95,8 @@ func (r *Runner) Run(state workspace.Workspace) Report {
 				report.add(SeverityPass, "rojo-config", fmt.Sprintf("Rojo project file %s is valid.", filepath.Base(path)), "")
 			}
 		}
-	} else {
-		report.add(SeverityWarning, "rojo-config", "No Rojo project file (*.project.json) found.", "Add a Rojo project file or run luu init in an adoptable repository.")
+	} else if tasksReferenceRojo(cfg) {
+		report.add(SeverityWarning, "rojo-config", "Rojo project file not found.", "Add a *.project.json or run luu init")
 	}
 
 	return report
@@ -121,6 +126,20 @@ func (r *Runner) checkWallyPackagesDir(report *Report, rootPath string) {
 		return
 	}
 	report.add(SeverityPass, "wally-packages", "Packages directory exists.", "")
+}
+
+func tasksReferenceRojo(cfg *config.Config) bool {
+	if cfg == nil {
+		return false
+	}
+	for _, task := range cfg.Tasks {
+		for _, step := range task.Steps {
+			if strings.Contains(step, "rojo") {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func validateTOMLFile(path string) error {
