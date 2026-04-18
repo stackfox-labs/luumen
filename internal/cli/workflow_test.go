@@ -44,14 +44,14 @@ func TestDevDefaultResolvesRojoPlan(t *testing.T) {
 	if err != nil {
 		t.Fatalf("expected dev success, got: %v", err)
 	}
-	if runner.calls != 1 || runner.lastTask != "__builtin_dev" {
-		t.Fatalf("expected one synthetic dev task invocation, got calls=%d task=%q", runner.calls, runner.lastTask)
+	if runner.calls != 1 || runner.lastTask != "dev" {
+		t.Fatalf("expected one dev task invocation, got calls=%d task=%q", runner.calls, runner.lastTask)
 	}
 
-	task := runner.lastCfg.Tasks["__builtin_dev"]
+	task := runner.lastCfg.Tasks["dev"]
 	expected := []string{"rojo sourcemap default.project.json --output sourcemap.json", "rojo serve default.project.json"}
-	if !reflect.DeepEqual(task.Commands, expected) {
-		t.Fatalf("expected dev plan %#v, got %#v", expected, task.Commands)
+	if !reflect.DeepEqual(task.Steps, expected) {
+		t.Fatalf("expected dev plan %#v, got %#v", expected, task.Steps)
 	}
 }
 
@@ -72,14 +72,14 @@ func TestBuildDefaultResolvesRojoPlan(t *testing.T) {
 		t.Fatalf("expected build success, got: %v", err)
 	}
 
-	task := runner.lastCfg.Tasks["__builtin_build"]
+	task := runner.lastCfg.Tasks["build"]
 	expected := []string{"rojo build default.project.json --output build.rbxl"}
-	if !reflect.DeepEqual(task.Commands, expected) {
-		t.Fatalf("expected build plan %#v, got %#v", expected, task.Commands)
+	if !reflect.DeepEqual(task.Steps, expected) {
+		t.Fatalf("expected build plan %#v, got %#v", expected, task.Steps)
 	}
 }
 
-func TestLintUsesCommandOverride(t *testing.T) {
+func TestLintUsesTaskOverride(t *testing.T) {
 	t.Parallel()
 
 	runner := &fakeWorkflowRunner{}
@@ -88,22 +88,22 @@ func TestLintUsesCommandOverride(t *testing.T) {
 			return workspace.Workspace{RootPath: "repo", HasLuumenConfig: true, LuumenConfigPath: "repo/" + workspace.LuumenConfigFile}, nil
 		},
 		loadConfig: func(_ string) (*config.Config, error) {
-			return &config.Config{Commands: map[string]config.TaskValue{"lint": config.NewTaskValue("selene src")}}, nil
+			return &config.Config{Tasks: map[string]config.TaskValue{"lint": config.NewTaskValue("selene src")}}, nil
 		},
 		taskRunner: runner,
 	}))
 	if err != nil {
-		t.Fatalf("expected lint override success, got: %v", err)
+		t.Fatalf("expected lint task success, got: %v", err)
 	}
 
-	task := runner.lastCfg.Tasks["__builtin_lint"]
+	task := runner.lastCfg.Tasks["lint"]
 	expected := []string{"selene src"}
-	if !reflect.DeepEqual(task.Commands, expected) {
-		t.Fatalf("expected lint override %#v, got %#v", expected, task.Commands)
+	if !reflect.DeepEqual(task.Steps, expected) {
+		t.Fatalf("expected lint override %#v, got %#v", expected, task.Steps)
 	}
 }
 
-func TestLintRequiresConfiguredCommand(t *testing.T) {
+func TestLintRequiresConfiguredTask(t *testing.T) {
 	t.Parallel()
 
 	err := executeWorkflowCommand(t, newLintCmd(workflowCommandDeps{
@@ -116,9 +116,9 @@ func TestLintRequiresConfiguredCommand(t *testing.T) {
 		taskRunner: &fakeWorkflowRunner{},
 	}))
 	if err == nil {
-		t.Fatal("expected lint configuration error")
+		t.Fatal("expected lint task configuration error")
 	}
-	if !strings.Contains(err.Error(), "commands.lint") {
+	if !strings.Contains(err.Error(), "tasks.lint") {
 		t.Fatalf("expected actionable lint configuration guidance, got: %v", err)
 	}
 }
@@ -217,7 +217,7 @@ func TestDevMissingRojoProjectPrintsPlannedStepsBeforeFailing(t *testing.T) {
 	}
 
 	text := output.String()
-	if !strings.Contains(text, "[luu] command: dev") || !strings.Contains(text, "[luu] resolved: 2 steps") {
+	if !strings.Contains(text, "[luu] task: dev") || !strings.Contains(text, "[luu] resolved: 2 steps") {
 		t.Fatalf("expected planned command output before failure, got: %q", text)
 	}
 }

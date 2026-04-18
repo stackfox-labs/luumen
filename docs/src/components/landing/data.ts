@@ -8,10 +8,10 @@ export const SECTIONS: CommandSection[] = [
     heading: "Scaffold in seconds",
     command: "luu create my-game",
     points: [
-      "Generates all config files in one shot",
-      "Initializes Rokit, Wally, and Rojo configs",
-      "Installs tools and packages immediately",
-      "Skip install with --no-install for CI use",
+      "Create a project in one command",
+      "Sets up the tools and config for you",
+      "Installs everything so you can start immediately",
+      "Supports templates and --no-install when needed",
     ],
     lines: [
       { text: "  [luu] Creating project: my-game", kind: "muted" },
@@ -37,10 +37,10 @@ export const SECTIONS: CommandSection[] = [
     heading: "One install for everything",
     command: "luu install",
     points: [
-      "Runs rokit install for all dev tools",
-      "Runs wally install for runtime packages",
-      "Works without project.config.luau when possible",
-      "Fine-grained control with --tools / --packages",
+      "Install everything the project needs",
+      "Handles tools and packages together",
+      "Works in existing repos without extra setup",
+      "Supports --tools and --packages when needed",
     ],
     lines: [
       { text: "  [luu] Resolving install scope...", kind: "muted" },
@@ -60,10 +60,10 @@ export const SECTIONS: CommandSection[] = [
     heading: "Add tools and packages",
     command: "luu add selene",
     points: [
-      "Resolves packages vs tools automatically",
-      "Built-in aliases: rojo, stylua, selene, wally",
-      "Installs immediately after updating config",
-      "Explicit tool: and pkg: prefixes available",
+      "Add dependencies in one command",
+      "Resolves common tools without full names",
+      "Updates the project and installs immediately",
+      "Supports tool: and pkg: prefixes when needed",
     ],
     lines: [
       { text: "  [luu] Resolving dependency: selene", kind: "muted" },
@@ -77,17 +77,17 @@ export const SECTIONS: CommandSection[] = [
     id: "dev",
     label: "dev",
     sub: "LUU DEV",
-    heading: "Your full dev workflow",
+    heading: "Run your project",
     command: "luu dev",
     points: [
-      "Runs your repo's commands.dev sequence",
-      "Default flow: sourcemap generation then Rojo serve",
-      "Fully overridable per-repo via project.config.luau",
-      "Pairs naturally with luu lint and luu format",
+      "Run the project's main development workflow",
+      "Supports multi-step flows like build and serve",
+      "Uses the project's own configuration",
+      "Same command across every repo",
     ],
     lines: [
       { text: "  [luu] workspace: my-game", kind: "muted" },
-      { text: "  [luu] command: dev", kind: "muted" },
+      { text: "  [luu] task: dev", kind: "muted" },
       { text: "  [luu] resolved: 2 steps", kind: "muted" },
       { text: "", kind: "blank" },
       { text: "  [luu] step 1/2: rojo sourcemap default.project.json --output sourcemap.json", kind: "plain" },
@@ -100,17 +100,17 @@ export const SECTIONS: CommandSection[] = [
     id: "lint",
     label: "lint",
     sub: "LUU LINT",
-    heading: "Built-in quality checks",
+    heading: "Run linting in one command",
     command: "luu lint",
     points: [
-      "Runs commands.lint from project.config.luau",
-      "Use luu format for formatter workflows",
-      "No custom task names needed for standard checks",
-      "Keep luu run <task> for project-specific automation",
+      "Run linting in one command",
+      "Uses whatever linter the project defines",
+      "No need to remember tool-specific commands",
+      "Fits into larger workflows like ci or check",
     ],
     lines: [
       { text: "  [luu] workspace: my-game", kind: "muted" },
-      { text: "  [luu] command: lint", kind: "muted" },
+      { text: "  [luu] task: lint", kind: "muted" },
       { text: "  [luu] running: selene src", kind: "plain" },
       { text: "", kind: "blank" },
       { text: "  Results:", kind: "plain" },
@@ -123,13 +123,13 @@ export const SECTIONS: CommandSection[] = [
     id: "doctor",
     label: "doctor",
     sub: "LUU DOCTOR",
-    heading: "Health check your repo",
+    heading: "Check your setup",
     command: "luu doctor",
     points: [
-      "Validates project.config.luau and rokit.toml",
-      "Checks required executables in PATH",
-      "Surfaces actionable warnings and next steps",
-      "Summarizes pass, warning, and error counts",
+      "Check for common setup issues",
+      "Validates config and required tools",
+      "Shows clear warnings and next steps",
+      "Gives a quick summary you can act on",
     ],
     lines: [
       { text: "  [luu] Running health checks...", kind: "muted" },
@@ -155,18 +155,18 @@ export const INSTALL_LINES = [
 
 export const FEATURES = [
   {
-    title: "Manages your full stack",
-    desc: "Luumen orchestrates Rokit, Wally, and Rojo together - one command installs your tools and packages without thinking about it.",
-    pills: ["luu install", "rokit", "wally", "rojo"],
+    title: "One CLI for your workflow",
+    desc: "Create projects, install dependencies, and run workflows through a single interface.",
+    pills: ["luu create", "luu install", "luu dev"],
   },
   {
-    title: "Standardizes every repo",
-    desc: "One consistent command surface across all projects. Clone any Luumen repo and the workflow is immediately familiar.",
-    pills: ["luu dev", "luu lint", "luu format", "luu test"],
+    title: "Works with your existing tools",
+    desc: "Use Rojo, Wally, and Rokit like before, without juggling commands.",
+    pills: ["rokit", "wally", "rojo"],
   },
   {
-    title: "Built-ins plus custom tasks",
-    desc: "Use luu lint, luu format, and luu test for common workflows. Keep luu run <task> for project-specific pipelines.",
+    title: "Standard by default, flexible when needed",
+    desc: "Use built-in commands for common workflows and define your own tasks when needed.",
     pills: ["luu lint", "luu format", "luu run ci"],
   },
 ]
@@ -174,17 +174,25 @@ export const FEATURES = [
 export const CONFIG_SOURCE = `return {
   project = {
     name = "my-game",
+    version = "0.1.0",
   },
 
-  commands = {
+  install = {
+    tools = true,
+    packages = true,
+  },
+
+  tasks = {
     dev = {
       "rojo sourcemap default.project.json --output sourcemap.json",
       "rojo serve default.project.json",
     },
-    lint = "selene src",
-  },
 
-  tasks = {
+    build = "rojo build default.project.json --output build.rbxl",
+
+    lint = "selene src",
+    format = "stylua src",
+
     check = {
       "luu lint",
       "luu format",

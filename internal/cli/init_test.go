@@ -83,11 +83,11 @@ func TestInitAdoptionRokitWallyRojo(t *testing.T) {
 		t.Fatalf("expected both install categories true, got %+v", writer.cfg.Install)
 	}
 
-	assertCommand(t, writer.cfg, "dev", []string{"rojo sourcemap default.project.json --output sourcemap.json", "rojo serve default.project.json"})
-	assertCommand(t, writer.cfg, "build", []string{"rojo build default.project.json --output build.rbxl"})
-	assertCommand(t, writer.cfg, "lint", []string{"selene src"})
-	assertCommand(t, writer.cfg, "format", []string{"stylua src"})
-	assertCommand(t, writer.cfg, "test", []string{"lune run test"})
+	assertTask(t, writer.cfg, "dev", []string{"rojo sourcemap default.project.json --output sourcemap.json", "rojo serve default.project.json"})
+	assertTask(t, writer.cfg, "build", []string{"rojo build default.project.json --output build.rbxl"})
+	assertTask(t, writer.cfg, "lint", []string{"selene src"})
+	assertTask(t, writer.cfg, "format", []string{"stylua src"})
+	assertTask(t, writer.cfg, "test", []string{"lune run test"})
 }
 
 func TestInitAdoptionPartialSetup(t *testing.T) {
@@ -119,7 +119,7 @@ func TestInitAdoptionPartialSetup(t *testing.T) {
 	if !writer.cfg.Install.Tools || writer.cfg.Install.Packages {
 		t.Fatalf("expected tools-only install settings, got %+v", writer.cfg.Install)
 	}
-	assertCommand(t, writer.cfg, "dev", []string{"rojo sourcemap games/default.project.json --output sourcemap.json", "rojo serve games/default.project.json"})
+	assertTask(t, writer.cfg, "dev", []string{"rojo sourcemap games/default.project.json --output sourcemap.json", "rojo serve games/default.project.json"})
 }
 
 func TestInitRefusesExistingLuumenConfig(t *testing.T) {
@@ -149,20 +149,44 @@ func TestInitRefusesExistingLuumenConfig(t *testing.T) {
 	}
 }
 
-func TestInitFailsWhenRojoInfoMissing(t *testing.T) {
+func TestInitFallsBackToBasicConfigWhenRojoInfoMissing(t *testing.T) {
 	t.Parallel()
 
-	err := executeInitCommand(initCommandDeps{
-		detectWorkspace: func(_ string) (workspace.Workspace, error) {
-			return workspace.Workspace{RootPath: "repo", HasRokitConfig: true, HasWallyConfig: true}, nil
-		},
-		writeConfig: (&capturedConfigWrite{}).Write,
-	})
-	if err == nil {
-		t.Fatal("expected missing Rojo info error")
+	repo := t.TempDir()
+	if err := os.WriteFile(filepath.Join(repo, "keep.txt"), []byte("data\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed existing repo file: %v", err)
 	}
-	if !strings.Contains(err.Error(), "no Rojo project file") {
-		t.Fatalf("expected clear Rojo guidance, got: %v", err)
+
+	writer := &capturedConfigWrite{}
+	cmd := newInitCmd(initCommandDeps{
+		detectWorkspace: func(_ string) (workspace.Workspace, error) {
+			return workspace.Workspace{
+				RootPath:         repo,
+				LuumenConfigPath: filepath.Join(repo, workspace.LuumenConfigFile),
+				HasRokitConfig:   true,
+				HasWallyConfig:   true,
+			}, nil
+		},
+		writeConfig: writer.Write,
+	})
+	cmd.SetIn(strings.NewReader("y\n"))
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("expected basic config fallback success, got: %v", err)
+	}
+	if writer.calls != 1 {
+		t.Fatalf("expected one config write, got %d", writer.calls)
+	}
+	if writer.cfg == nil {
+		t.Fatal("expected basic config to be written")
+	}
+	if !writer.cfg.Install.Tools || !writer.cfg.Install.Packages {
+		t.Fatalf("expected install settings to mirror detected repo config, got %+v", writer.cfg.Install)
+	}
+	if len(writer.cfg.Tasks) != 0 {
+		t.Fatalf("expected basic config without generated tasks, got %+v", writer.cfg.Tasks)
 	}
 }
 
@@ -260,7 +284,7 @@ func TestInitCreateInPlaceDeclined(t *testing.T) {
 	}
 }
 
-func TestInitCreateInPlaceRequiresEmptyDirectory(t *testing.T) {
+func TestInitCreateInPlaceNonEmptyDirectoryOffersBasicConfig(t *testing.T) {
 	t.Parallel()
 
 	repo := t.TempDir()
@@ -272,40 +296,89 @@ func TestInitCreateInPlaceRequiresEmptyDirectory(t *testing.T) {
 		t.Fatalf("failed to seed non-empty directory: %v", err)
 	}
 
+	writer := &capturedConfigWrite{}
 	cmd := newInitCmd(initCommandDeps{
 		detectWorkspace: func(_ string) (workspace.Workspace, error) {
 			return state, nil
 		},
-		writeConfig:    config.Write,
+		writeConfig:    writer.Write,
 		rokitInstaller: &fakeInstaller{},
 		wallyInstaller: &fakeInstaller{},
 	})
-	cmd.SetIn(strings.NewReader("y\n"))
+	cmd.SetIn(strings.NewReader("y\ny\n"))
+	cmd.SetOut(bytes.NewBuffer(nil))
+	cmd.SetErr(bytes.NewBuffer(nil))
+
+	if err := cmd.Execute(); err != nil {
+		t.Fatalf("expected basic config fallback success, got: %v", err)
+	}
+	if writer.calls != 1 {
+		t.Fatalf("expected one config write, got %d", writer.calls)
+	}
+	if writer.cfg == nil {
+		t.Fatal("expected basic config to be generated")
+	}
+	if writer.cfg.Project.Name != filepath.Base(repo) {
+		t.Fatalf("expected basic config project name %q, got %q", filepath.Base(repo), writer.cfg.Project.Name)
+	}
+	if writer.cfg.Install.Tools || writer.cfg.Install.Packages {
+		t.Fatalf("expected empty install settings for plain fallback, got %+v", writer.cfg.Install)
+	}
+	if len(writer.cfg.Tasks) != 0 {
+		t.Fatalf("expected no generated tasks for basic config, got %+v", writer.cfg.Tasks)
+	}
+}
+
+func TestInitCreateInPlaceNonEmptyDirectoryCanDeclineBasicConfigFallback(t *testing.T) {
+	t.Parallel()
+
+	repo := t.TempDir()
+	state := workspace.Workspace{
+		RootPath:         repo,
+		LuumenConfigPath: filepath.Join(repo, workspace.LuumenConfigFile),
+	}
+	if err := os.WriteFile(filepath.Join(repo, "keep.txt"), []byte("data\n"), 0o644); err != nil {
+		t.Fatalf("failed to seed non-empty directory: %v", err)
+	}
+
+	writer := &capturedConfigWrite{}
+	cmd := newInitCmd(initCommandDeps{
+		detectWorkspace: func(_ string) (workspace.Workspace, error) {
+			return state, nil
+		},
+		writeConfig:    writer.Write,
+		rokitInstaller: &fakeInstaller{},
+		wallyInstaller: &fakeInstaller{},
+	})
+	cmd.SetIn(strings.NewReader("y\nn\n"))
 	cmd.SetOut(bytes.NewBuffer(nil))
 	cmd.SetErr(bytes.NewBuffer(nil))
 
 	err := cmd.Execute()
 	if err == nil {
-		t.Fatal("expected non-empty directory validation error")
+		t.Fatal("expected cancellation when basic config fallback is declined")
 	}
-	if !strings.Contains(strings.ToLower(err.Error()), "not empty") {
-		t.Fatalf("expected non-empty directory guidance, got: %v", err)
+	if !strings.Contains(strings.ToLower(err.Error()), "cancelled") {
+		t.Fatalf("expected cancellation guidance, got: %v", err)
+	}
+	if writer.calls != 0 {
+		t.Fatalf("expected no config write when fallback is declined, got %d", writer.calls)
 	}
 }
 
-func assertCommand(t *testing.T, cfg *config.Config, name string, expected []string) {
+func assertTask(t *testing.T, cfg *config.Config, name string, expected []string) {
 	t.Helper()
 
-	task, ok := cfg.Commands[name]
+	task, ok := cfg.Tasks[name]
 	if !ok {
-		t.Fatalf("expected command %q", name)
+		t.Fatalf("expected task %q", name)
 	}
-	if len(task.Commands) != len(expected) {
-		t.Fatalf("expected %d commands for %q, got %#v", len(expected), name, task.Commands)
+	if len(task.Steps) != len(expected) {
+		t.Fatalf("expected %d steps for %q, got %#v", len(expected), name, task.Steps)
 	}
 	for index := range expected {
-		if task.Commands[index] != expected[index] {
-			t.Fatalf("expected command %q entry %d to be %q, got %q", name, index, expected[index], task.Commands[index])
+		if task.Steps[index] != expected[index] {
+			t.Fatalf("expected task %q entry %d to be %q, got %q", name, index, expected[index], task.Steps[index])
 		}
 	}
 }

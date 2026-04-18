@@ -82,8 +82,8 @@ func (e *Engine) runTask(ctx context.Context, cfg *config.Config, taskName strin
 	}
 
 	nextStack := append(append([]string(nil), stack...), taskName)
-	for _, command := range plan.Commands {
-		nestedTask, isNested := parseNestedRunCommand(command, e.cliName)
+	for _, step := range plan.Steps {
+		nestedTask, isNested := parseNestedRunCommand(step, e.cliName)
 		if isNested {
 			if err := e.runTask(ctx, cfg, nestedTask, options, nextStack); err != nil {
 				return err
@@ -91,14 +91,14 @@ func (e *Engine) runTask(ctx context.Context, cfg *config.Config, taskName strin
 			continue
 		}
 
-		if _, err := e.shellRunner.RunShell(ctx, command, process.Options{
+		if _, err := e.shellRunner.RunShell(ctx, step, process.Options{
 			WorkingDir: options.WorkingDir,
 			Env:        options.Env,
 			Stdout:     options.Stdout,
 			Stderr:     options.Stderr,
 			Stdin:      options.Stdin,
 		}); err != nil {
-			return fmt.Errorf("task %q command %q failed: %w", taskName, command, err)
+			return fmt.Errorf("task %q step %q failed: %w", taskName, step, err)
 		}
 	}
 

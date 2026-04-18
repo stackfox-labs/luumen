@@ -24,7 +24,6 @@ type Config struct {
 	Install  InstallConfig
 	Tools    map[string]string
 	Packages map[string]string
-	Commands map[string]TaskValue
 	Tasks    map[string]TaskValue
 }
 
@@ -41,22 +40,22 @@ type InstallConfig struct {
 }
 
 type TaskValue struct {
-	Commands []string
+	Steps []string
 }
 
-func NewTaskValue(commands ...string) TaskValue {
-	copied := append([]string(nil), commands...)
-	return TaskValue{Commands: copied}
+func NewTaskValue(steps ...string) TaskValue {
+	copied := append([]string(nil), steps...)
+	return TaskValue{Steps: copied}
 }
 
 func (v TaskValue) AsRawValue() any {
-	switch len(v.Commands) {
+	switch len(v.Steps) {
 	case 0:
 		return ""
 	case 1:
-		return v.Commands[0]
+		return v.Steps[0]
 	default:
-		return append([]string(nil), v.Commands...)
+		return append([]string(nil), v.Steps...)
 	}
 }
 
@@ -319,7 +318,6 @@ func fromDataObject(root dataObject) (*Config, error) {
 		"install":  {},
 		"tools":    {},
 		"packages": {},
-		"commands": {},
 		"tasks":    {},
 	}
 
@@ -352,12 +350,6 @@ func fromDataObject(root dataObject) (*Config, error) {
 		return nil, err
 	}
 	cfg.Packages = packages
-
-	commands, err := parseTaskMapSection("commands", root["commands"])
-	if err != nil {
-		return nil, err
-	}
-	cfg.Commands = commands
 
 	tasks, err := parseTaskMapSection("tasks", root["tasks"])
 	if err != nil {
@@ -501,25 +493,25 @@ func parseTaskMapSection(scope string, value dataValue) (map[string]TaskValue, e
 func parseTaskValue(path string, value dataValue) (TaskValue, error) {
 	switch typed := value.(type) {
 	case string:
-		commands, err := normalizeCommandList([]string{typed})
+		steps, err := normalizeTaskSteps([]string{typed})
 		if err != nil {
 			return TaskValue{}, fmt.Errorf("%s: %w", path, err)
 		}
-		return TaskValue{Commands: commands}, nil
+		return TaskValue{Steps: steps}, nil
 	case dataArray:
-		commands := make([]string, 0, len(typed))
+		steps := make([]string, 0, len(typed))
 		for index, item := range typed {
-			command, ok := item.(string)
+			step, ok := item.(string)
 			if !ok {
 				return TaskValue{}, fmt.Errorf("%s[%d]: expected a string", path, index)
 			}
-			commands = append(commands, command)
+			steps = append(steps, step)
 		}
-		normalized, err := normalizeCommandList(commands)
+		normalized, err := normalizeTaskSteps(steps)
 		if err != nil {
 			return TaskValue{}, fmt.Errorf("%s: %w", path, err)
 		}
-		return TaskValue{Commands: normalized}, nil
+		return TaskValue{Steps: normalized}, nil
 	default:
 		return TaskValue{}, fmt.Errorf("%s: expected a string or array of strings", path)
 	}
@@ -541,16 +533,16 @@ func requireBool(path string, value dataValue) (bool, error) {
 	return booleanValue, nil
 }
 
-func normalizeCommandList(commands []string) ([]string, error) {
-	if len(commands) == 0 {
-		return nil, errors.New("must contain at least one command")
+func normalizeTaskSteps(steps []string) ([]string, error) {
+	if len(steps) == 0 {
+		return nil, errors.New("must contain at least one step")
 	}
 
-	normalized := make([]string, 0, len(commands))
-	for _, command := range commands {
-		trimmed := strings.TrimSpace(command)
+	normalized := make([]string, 0, len(steps))
+	for _, step := range steps {
+		trimmed := strings.TrimSpace(step)
 		if trimmed == "" {
-			return nil, errors.New("command must not be empty")
+			return nil, errors.New("step must not be empty")
 		}
 		normalized = append(normalized, trimmed)
 	}
@@ -581,7 +573,7 @@ type objectEntry struct {
 }
 
 func encode(cfg *Config) (string, error) {
-	topLevel := make([]objectEntry, 0, 6)
+	topLevel := make([]objectEntry, 0, 5)
 
 	if project := encodeProject(cfg.Project); len(project) > 0 {
 		topLevel = append(topLevel, objectEntry{key: "project", value: project})
@@ -594,11 +586,6 @@ func encode(cfg *Config) (string, error) {
 	}
 	if packages := encodeStringMap(cfg.Packages); len(packages) > 0 {
 		topLevel = append(topLevel, objectEntry{key: "packages", value: packages})
-	}
-	if commands, err := encodeTaskMap("commands", cfg.Commands); err != nil {
-		return "", err
-	} else if len(commands) > 0 {
-		topLevel = append(topLevel, objectEntry{key: "commands", value: commands})
 	}
 	if tasks, err := encodeTaskMap("tasks", cfg.Tasks); err != nil {
 		return "", err
@@ -672,15 +659,15 @@ func encodeTaskMap(scope string, values map[string]TaskValue) ([]objectEntry, er
 
 	entries := make([]objectEntry, 0, len(keys))
 	for _, key := range keys {
-		commands, err := normalizeCommandList(values[key].Commands)
+		steps, err := normalizeTaskSteps(values[key].Steps)
 		if err != nil {
 			return nil, fmt.Errorf("%s.%s: %w", scope, key, err)
 		}
-		if len(commands) == 1 {
-			entries = append(entries, objectEntry{key: key, value: commands[0]})
+		if len(steps) == 1 {
+			entries = append(entries, objectEntry{key: key, value: steps[0]})
 			continue
 		}
-		entries = append(entries, objectEntry{key: key, value: commands})
+		entries = append(entries, objectEntry{key: key, value: steps})
 	}
 
 	return entries, nil

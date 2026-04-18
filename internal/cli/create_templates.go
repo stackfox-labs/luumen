@@ -29,9 +29,8 @@ type createTemplate struct {
 }
 
 type createTemplateProject struct {
-	Install  createTemplateInstall `json:"install"`
-	Commands map[string][]string   `json:"commands"`
-	Tasks    map[string][]string   `json:"tasks"`
+	Install createTemplateInstall `json:"install"`
+	Tasks   map[string][]string   `json:"tasks"`
 }
 
 type createTemplateInstall struct {
@@ -95,20 +94,11 @@ func validateCreateTemplate(template createTemplate, seen map[string]struct{}) e
 		}
 	}
 
-	for name, commands := range template.Project.Commands {
-		if len(commands) == 0 {
+	for name, steps := range template.Project.Tasks {
+		if len(steps) == 0 {
 			continue
 		}
-		if _, err := renderCommandList(commands, createTemplateTokens{}); err != nil {
-			return fmt.Errorf("template %q has invalid command %q: %w", template.Name, name, err)
-		}
-	}
-
-	for name, commands := range template.Project.Tasks {
-		if len(commands) == 0 {
-			continue
-		}
-		if _, err := renderCommandList(commands, createTemplateTokens{}); err != nil {
+		if _, err := renderTaskSteps(steps, createTemplateTokens{}); err != nil {
 			return fmt.Errorf("template %q has invalid task %q: %w", template.Name, name, err)
 		}
 	}
@@ -173,28 +163,14 @@ func scaffoldProjectFromTemplate(targetPath string, projectName string, template
 			Tools:    template.Project.Install.Tools,
 			Packages: template.Project.Install.Packages,
 		},
-		Commands: make(map[string]config.TaskValue, len(template.Project.Commands)),
-	}
-	for name, commands := range template.Project.Commands {
-		if len(commands) == 0 {
-			continue
-		}
-		rendered, err := renderCommandList(commands, tokens)
-		if err != nil {
-			return fmt.Errorf("template command %q is invalid: %w", name, err)
-		}
-		if len(rendered) == 0 {
-			continue
-		}
-		cfg.Commands[name] = config.NewTaskValue(rendered...)
 	}
 	if len(template.Project.Tasks) > 0 {
 		cfg.Tasks = make(map[string]config.TaskValue, len(template.Project.Tasks))
-		for name, commands := range template.Project.Tasks {
-			if len(commands) == 0 {
+		for name, steps := range template.Project.Tasks {
+			if len(steps) == 0 {
 				continue
 			}
-			rendered, err := renderCommandList(commands, tokens)
+			rendered, err := renderTaskSteps(steps, tokens)
 			if err != nil {
 				return fmt.Errorf("template task %q is invalid: %w", name, err)
 			}
@@ -206,10 +182,6 @@ func scaffoldProjectFromTemplate(targetPath string, projectName string, template
 		if len(cfg.Tasks) == 0 {
 			cfg.Tasks = nil
 		}
-	}
-
-	if len(cfg.Commands) == 0 {
-		cfg.Commands = nil
 	}
 
 	if err := writeConfig(filepath.Join(targetPath, config.FileName), cfg); err != nil {
@@ -237,15 +209,15 @@ func scaffoldProjectFromTemplate(targetPath string, projectName string, template
 	return nil
 }
 
-func renderCommandList(commands []string, tokens createTemplateTokens) ([]string, error) {
-	if len(commands) == 0 {
-		return nil, fmt.Errorf("command list must not be empty")
+func renderTaskSteps(steps []string, tokens createTemplateTokens) ([]string, error) {
+	if len(steps) == 0 {
+		return nil, fmt.Errorf("task step list must not be empty")
 	}
-	rendered := make([]string, 0, len(commands))
-	for _, command := range commands {
-		trimmed := strings.TrimSpace(renderTemplateTokens(command, tokens))
+	rendered := make([]string, 0, len(steps))
+	for _, step := range steps {
+		trimmed := strings.TrimSpace(renderTemplateTokens(step, tokens))
 		if trimmed == "" {
-			return nil, fmt.Errorf("command must not be empty")
+			return nil, fmt.Errorf("task step must not be empty")
 		}
 		rendered = append(rendered, trimmed)
 	}

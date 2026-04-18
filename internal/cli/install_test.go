@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"luumen/internal/config"
 	"luumen/internal/process"
 	"luumen/internal/tools"
 	"luumen/internal/workspace"
@@ -67,6 +68,48 @@ func TestInstallDefaultRunsToolsAndPackages(t *testing.T) {
 	}
 	if rokit.calls != 1 || wally.calls != 1 {
 		t.Fatalf("expected both installers to run once, got rokit=%d wally=%d", rokit.calls, wally.calls)
+	}
+}
+
+func TestInstallUsesTaskOverrideWhenDefined(t *testing.T) {
+	t.Parallel()
+
+	rokit := &fakeInstaller{}
+	wally := &fakeInstaller{}
+	runner := &fakeTaskRunner{}
+
+	err := executeInstallCommand(installCommandDeps{
+		detectWorkspace: func(_ string) (workspace.Workspace, error) {
+			return workspace.Workspace{
+				RootPath:         "repo",
+				HasLuumenConfig:  true,
+				LuumenConfigPath: "repo/" + workspace.LuumenConfigFile,
+				HasRokitConfig:   true,
+				HasWallyConfig:   true,
+			}, nil
+		},
+		loadConfig: func(_ string) (*config.Config, error) {
+			return &config.Config{
+				Tasks: map[string]config.TaskValue{
+					"install": config.NewTaskValue("echo custom install"),
+				},
+			}, nil
+		},
+		taskRunner:     runner,
+		rokitInstaller: rokit,
+		wallyInstaller: wally,
+	})
+	if err != nil {
+		t.Fatalf("expected install task override success, got: %v", err)
+	}
+	if runner.calls != 1 || runner.lastTask != "install" {
+		t.Fatalf("expected install task to run once, got calls=%d task=%q", runner.calls, runner.lastTask)
+	}
+	if runner.lastOpts.WorkingDir != "repo" {
+		t.Fatalf("expected install task working dir repo, got %q", runner.lastOpts.WorkingDir)
+	}
+	if rokit.calls != 0 || wally.calls != 0 {
+		t.Fatalf("expected default installers to be skipped, got rokit=%d wally=%d", rokit.calls, wally.calls)
 	}
 }
 

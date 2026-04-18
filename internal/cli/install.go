@@ -6,13 +6,17 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"luumen/internal/config"
 	"luumen/internal/process"
+	"luumen/internal/tasks"
 	"luumen/internal/tools"
 	"luumen/internal/workspace"
 )
 
 type installCommandDeps struct {
 	detectWorkspace func(path string) (workspace.Workspace, error)
+	loadConfig      func(path string) (*config.Config, error)
+	taskRunner      taskRunner
 	rokitInstaller  rokitInstaller
 	wallyInstaller  wallyInstaller
 }
@@ -28,6 +32,7 @@ type wallyInstaller interface {
 func defaultInstallCommandDeps() installCommandDeps {
 	return installCommandDeps{
 		detectWorkspace: workspace.Detect,
+		loadConfig:      config.Load,
 		rokitInstaller:  tools.NewRokit(nil, ""),
 		wallyInstaller:  tools.NewWally(nil, ""),
 	}
@@ -36,6 +41,9 @@ func defaultInstallCommandDeps() installCommandDeps {
 func newInstallCmd(deps installCommandDeps) *cobra.Command {
 	if deps.detectWorkspace == nil {
 		deps.detectWorkspace = workspace.Detect
+	}
+	if deps.loadConfig == nil {
+		deps.loadConfig = config.Load
 	}
 	if deps.rokitInstaller == nil {
 		deps.rokitInstaller = tools.NewRokit(nil, "")
@@ -61,6 +69,39 @@ func newInstallCmd(deps installCommandDeps) *cobra.Command {
 			"luu install --tools --no-tools --packages",
 		Args: requireNoPositionalArgs(),
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			state, err := deps.detectWorkspace("")
+			if err != nil {
+				return fmt.Errorf("failed to detect workspace: %w. Next: run the command from a repository directory", err)
+			}
+
+			if state.HasLuumenConfig {
+				cfg, err := deps.loadConfig(state.LuumenConfigPath)
+				if err != nil {
+					return fmt.Errorf("failed to load %s: %w", workspace.LuumenConfigFile, err)
+				}
+
+				if _, ok := cfg.Tasks["install"]; ok {
+					statusf(cmd, "Running task: install")
+
+					runner := deps.taskRunner
+					if runner == nil {
+						runner = tasks.NewEngine(newSelfHealingShellRunner(cmd, "install", state, deps.rokitInstaller), "luu")
+					}
+
+					stdout, stderr := commandOutputWriters(cmd)
+					if err := runner.RunNamedTask(cmd.Context(), "install", cfg, tasks.RunOptions{
+						WorkingDir: state.RootPath,
+						Stdout:     stdout,
+						Stderr:     stderr,
+						Stdin:      cmd.InOrStdin(),
+					}); err != nil {
+						return fmt.Errorf("task %q failed: %w", "install", err)
+					}
+					statusf(cmd, "Task completed: install")
+					return nil
+				}
+			}
+
 			mode := resolveInstallMode(installModeInput{
 				ToolsOnly:    toolsOnly,
 				PackagesOnly: packagesOnly,
@@ -73,11 +114,6 @@ func newInstallCmd(deps installCommandDeps) *cobra.Command {
 			}
 
 			statusf(cmd, "Resolving install scope...")
-
-			state, err := deps.detectWorkspace("")
-			if err != nil {
-				return fmt.Errorf("failed to detect workspace: %w. Next: run the command from a repository directory", err)
-			}
 
 			toolsAvailable := state.HasRokitConfig
 			packagesAvailable := state.HasWallyConfig

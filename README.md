@@ -112,8 +112,6 @@ Luumen uses a shared Luau config file:
 project.config.luau
 ```
 
-This file defines project-level workflows such as commands and tasks, using native Luau tables.
-
 Instead of spreading configuration across multiple formats, `project.config.luau` provides a single place to describe how your project runs.
 
 ```lua
@@ -127,7 +125,7 @@ return {
         packages = true,
     },
 
-    commands = {
+    tasks = {
         dev = {
             "rojo sourcemap default.project.json --output sourcemap.json",
             "rojo serve default.project.json",
@@ -136,9 +134,6 @@ return {
         lint = "selene src",
         format = "stylua src",
         test = "lune run test",
-    },
-
-    tasks = {
         check = {
             "luu lint",
             "luu format",

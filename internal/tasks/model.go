@@ -9,22 +9,22 @@ import (
 )
 
 type ExecutionPlan struct {
-	Commands []string
+	Steps []string
 }
 
 func NormalizeTaskValue(value config.TaskValue) (ExecutionPlan, error) {
-	if len(value.Commands) == 0 {
-		return ExecutionPlan{}, errors.New("task must contain at least one command")
+	if len(value.Steps) == 0 {
+		return ExecutionPlan{}, errors.New("task must contain at least one step")
 	}
 
-	commands := make([]string, 0, len(value.Commands))
-	for index, command := range value.Commands {
-		trimmed := strings.TrimSpace(command)
+	steps := make([]string, 0, len(value.Steps))
+	for index, step := range value.Steps {
+		trimmed := strings.TrimSpace(step)
 		if trimmed == "" {
-			return ExecutionPlan{}, fmt.Errorf("command %d must not be empty", index)
+			return ExecutionPlan{}, fmt.Errorf("step %d must not be empty", index)
 		}
-		commands = append(commands, trimmed)
+		steps = append(steps, trimmed)
 	}
 
-	return ExecutionPlan{Commands: commands}, nil
+	return ExecutionPlan{Steps: steps}, nil
 }

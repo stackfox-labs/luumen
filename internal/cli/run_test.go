@@ -103,29 +103,6 @@ func TestRunCommandTaskFailurePropagates(t *testing.T) {
 	}
 }
 
-func TestRunCommandGuidesWhenNameExistsInCommandsSection(t *testing.T) {
-	t.Parallel()
-
-	err := executeRunCommand(runCommandDeps{
-		detectWorkspace: func(_ string) (workspace.Workspace, error) {
-			return workspace.Workspace{RootPath: "repo", HasLuumenConfig: true, LuumenConfigPath: "repo/" + workspace.LuumenConfigFile}, nil
-		},
-		loadConfig: func(_ string) (*config.Config, error) {
-			return &config.Config{
-				Commands: map[string]config.TaskValue{"lint": config.NewTaskValue("stylua src")},
-				Tasks:    map[string]config.TaskValue{},
-			}, nil
-		},
-		taskRunner: tasks.NewEngine(nil, "luu"),
-	}, "lint")
-	if err == nil {
-		t.Fatal("expected guidance error for commands misuse")
-	}
-	if !strings.Contains(err.Error(), "defined under commands") || !strings.Contains(err.Error(), "executes tasks") {
-		t.Fatalf("expected actionable section guidance, got: %v", err)
-	}
-}
-
 func TestRunHelpAvailableFromRoot(t *testing.T) {
 	t.Parallel()
 

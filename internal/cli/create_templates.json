@@ -7,13 +7,6 @@
         "install": {
           "tools": false,
           "packages": false
-        },
-        "commands": {
-          "dev": [],
-          "build": [],
-	      "lint": [],
-	      "format": [],
-	      "test": []
         }
       }
     },
@@ -25,27 +18,26 @@
           "tools": true,
           "packages": true
         },
-        "commands": {
+        "tasks": {
           "dev": [
-          "rojo sourcemap default.project.json --output sourcemap.json",
+            "rojo sourcemap default.project.json --output sourcemap.json",
             "rojo serve default.project.json"
           ],
           "build": [
             "rojo build default.project.json --output build.rbxl"
           ],
-        "lint": [
-          "selene src"
-        ],
-        "format": [
-          "stylua src"
-        ],
-        "test": [
-          "lune run test"
-          ]
-        },
-        "tasks": {
-          "check": [
+          "lint": [
             "selene src"
+          ],
+          "format": [
+            "stylua src"
+          ],
+          "test": [
+            "lune run test"
+          ],
+          "check": [
+            "luu lint",
+            "luu format"
           ]
         }
       },
@@ -62,8 +54,8 @@
             "rojo = \"rojo-rbx/rojo@7.6.1\"",
             "wally = \"UpliftGames/wally@0.3.2\"",
             "stylua = \"JohnnyMorganz/StyLua@2.4.0\"",
-	        "selene = \"Kampfkarren/selene@0.30.1\"",
-	        "lune = \"lune-org/lune@0.10.4\""
+            "selene = \"Kampfkarren/selene@0.30.1\"",
+            "lune = \"lune-org/lune@0.10.4\""
           ]
         },
         {
@@ -140,27 +132,26 @@
           "tools": true,
           "packages": false
         },
-        "commands": {
+        "tasks": {
           "dev": [
-          "rojo sourcemap default.project.json --output sourcemap.json",
+            "rojo sourcemap default.project.json --output sourcemap.json",
             "rojo serve default.project.json"
           ],
           "build": [
             "rojo build default.project.json --output build.rbxl"
           ],
-        "lint": [
-          "selene src"
-        ],
-        "format": [
-          "stylua src"
-        ],
-        "test": [
-          "lune run test"
-          ]
-        },
-        "tasks": {
-          "check": [
+          "lint": [
             "selene src"
+          ],
+          "format": [
+            "stylua src"
+          ],
+          "test": [
+            "lune run test"
+          ],
+          "check": [
+            "luu lint",
+            "luu format"
           ]
         }
       },
@@ -176,8 +167,8 @@
             "[tools]",
             "rojo = \"rojo-rbx/rojo@7.6.1\"",
             "stylua = \"JohnnyMorganz/StyLua@2.4.0\"",
-	        "selene = \"Kampfkarren/selene@0.30.1\"",
-	        "lune = \"lune-org/lune@0.10.4\""
+            "selene = \"Kampfkarren/selene@0.30.1\"",
+            "lune = \"lune-org/lune@0.10.4\""
           ]
         },
         {
@@ -242,24 +233,22 @@
           "tools": true,
           "packages": false
         },
-        "commands": {
+        "tasks": {
           "dev": [
             "lune run src/http_server.luau"
           ],
           "build": [
             "echo No build step configured for lune-http"
           ],
-        "lint": [
-          "stylua src"
-        ],
-        "format": [
-          "stylua src"
-        ],
-        "test": [
-          "echo No test step configured for lune-http"
-          ]
-        },
-        "tasks": {
+          "lint": [
+            "stylua src"
+          ],
+          "format": [
+            "stylua src"
+          ],
+          "test": [
+            "echo No test step configured for lune-http"
+          ],
           "run": [
             "lune run src/main.luau"
           ],
@@ -328,24 +317,22 @@
           "tools": true,
           "packages": false
         },
-        "commands": {
+        "tasks": {
           "dev": [
             "lute run src/main.luau"
           ],
           "build": [
             "echo No build step configured for lute-guessing"
           ],
-        "lint": [
-          "stylua src tests"
-        ],
-        "format": [
-          "stylua src tests"
-        ],
-        "test": [
-          "echo No test step configured for lute-guessing"
-          ]
-        },
-        "tasks": {
+          "lint": [
+            "stylua src tests"
+          ],
+          "format": [
+            "stylua src tests"
+          ],
+          "test": [
+            "echo No test step configured for lute-guessing"
+          ],
           "play": [
             "lute run src/main.luau"
           ],

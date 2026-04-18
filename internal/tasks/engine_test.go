@@ -13,12 +13,12 @@ import (
 )
 
 type fakeShellRunner struct {
-	commands      []string
+	steps         []string
 	failOnCommand map[string]error
 }
 
 func (f *fakeShellRunner) RunShell(_ context.Context, command string, _ process.Options) (process.Result, error) {
-	f.commands = append(f.commands, command)
+	f.steps = append(f.steps, command)
 	if err, ok := f.failOnCommand[command]; ok {
 		return process.Result{ExitCode: 1}, err
 	}
@@ -35,8 +35,8 @@ func TestRunNamedTaskSingleCommand(t *testing.T) {
 	if err := engine.RunNamedTask(context.Background(), "fmt", cfg, RunOptions{}); err != nil {
 		t.Fatalf("expected single task success, got: %v", err)
 	}
-	if !reflect.DeepEqual(runner.commands, []string{"stylua src"}) {
-		t.Fatalf("expected one command, got %#v", runner.commands)
+	if !reflect.DeepEqual(runner.steps, []string{"stylua src"}) {
+		t.Fatalf("expected one step, got %#v", runner.steps)
 	}
 }
 
@@ -52,8 +52,8 @@ func TestRunNamedTaskSequentialCommands(t *testing.T) {
 	}
 
 	expected := []string{"luu sourcemap", "rojo build default.project.json --output build.rbxl"}
-	if !reflect.DeepEqual(runner.commands, expected) {
-		t.Fatalf("expected sequential commands %#v, got %#v", expected, runner.commands)
+	if !reflect.DeepEqual(runner.steps, expected) {
+		t.Fatalf("expected sequential steps %#v, got %#v", expected, runner.steps)
 	}
 }
 
@@ -73,8 +73,8 @@ func TestRunNamedTaskStopsOnFailure(t *testing.T) {
 		t.Fatalf("expected wrapped failure, got: %v", err)
 	}
 	expected := []string{"ok-one", "fail"}
-	if !reflect.DeepEqual(runner.commands, expected) {
-		t.Fatalf("expected halt after failure %#v, got %#v", expected, runner.commands)
+	if !reflect.DeepEqual(runner.steps, expected) {
+		t.Fatalf("expected halt after failure %#v, got %#v", expected, runner.steps)
 	}
 }
 
@@ -98,8 +98,8 @@ func TestRunNamedTaskRecursiveAndCycleDetection(t *testing.T) {
 		"rojo sourcemap default.project.json --output sourcemap.json",
 		"rojo serve default.project.json",
 	}
-	if !reflect.DeepEqual(runner.commands, expected) {
-		t.Fatalf("expected nested commands %#v, got %#v", expected, runner.commands)
+	if !reflect.DeepEqual(runner.steps, expected) {
+		t.Fatalf("expected nested steps %#v, got %#v", expected, runner.steps)
 	}
 
 	cycleCfg := &config.Config{

@@ -51,13 +51,14 @@ func newInitCmd(deps initCommandDeps) *cobra.Command {
 		Use:   "init",
 		Short: "Adopt an existing repo into Luumen",
 		Long: "Init inspects the current repository for Rokit, Wally, and Rojo files, " +
-			"then generates project.config.luau with sensible default command mappings.",
+			"then generates project.config.luau with sensible default task mappings.",
 		Example: "luu init\n" +
 			"luu init --quiet",
 		Args: requireNoPositionalArgs(),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			statusf(cmd, "Inspecting repository for adoption...")
 			spacef(cmd)
+			reader := bufio.NewReader(cmd.InOrStdin())
 
 			state, err := deps.detectWorkspace("")
 			if err != nil {
@@ -69,7 +70,7 @@ func newInitCmd(deps initCommandDeps) *cobra.Command {
 			}
 
 			if !state.HasRokitConfig && !state.HasWallyConfig && !state.HasRojoProject {
-				confirmed, err := confirmCreateInPlace(cmd, state.RootPath)
+				confirmed, err := confirmCreateInPlace(cmd, reader, state.RootPath)
 				if err != nil {
 					return err
 				}
@@ -82,7 +83,20 @@ func newInitCmd(deps initCommandDeps) *cobra.Command {
 					return fmt.Errorf("failed to inspect directory %s: %w", state.RootPath, err)
 				}
 				if !empty {
-					return fmt.Errorf("cannot create project in-place: directory %s is not empty. Next: run luu create <name> in the parent directory or empty this directory first", state.RootPath)
+					createdBasic, err := maybeCreateBasicConfig(
+						cmd,
+						reader,
+						state,
+						deps.writeConfig,
+						fmt.Sprintf("This directory already has files, so Luumen cannot scaffold a fresh project in %s without risking your existing work.", state.RootPath),
+					)
+					if err != nil {
+						return err
+					}
+					if createdBasic {
+						return nil
+					}
+					return fmt.Errorf("init cancelled by user. Next: run luu create <name> in a new directory or rerun luu init and choose the basic config fallback")
 				}
 
 				statusf(cmd, "No adoptable config found. Scaffolding current directory...")
@@ -125,7 +139,20 @@ func newInitCmd(deps initCommandDeps) *cobra.Command {
 			}
 
 			if !state.HasRojoProject || len(state.RojoProjectPaths) == 0 {
-				return fmt.Errorf("unable to generate default commands confidently: no Rojo project file (*.project.json) found. Next: add a project file like default.project.json")
+				createdBasic, err := maybeCreateBasicConfig(
+					cmd,
+					reader,
+					state,
+					deps.writeConfig,
+					"Luumen could not generate default tasks confidently because no Rojo project file (*.project.json) was found.",
+				)
+				if err != nil {
+					return err
+				}
+				if createdBasic {
+					return nil
+				}
+				return fmt.Errorf("unable to generate default tasks confidently: no Rojo project file (*.project.json) found. Next: add a project file like default.project.json or rerun luu init and choose the basic config fallback")
 			}
 
 			rojoProjectPath, err := toRelativeConfigPath(state.RootPath, state.RojoProjectPaths[0])
@@ -141,7 +168,7 @@ func newInitCmd(deps initCommandDeps) *cobra.Command {
 					Tools:    state.HasRokitConfig,
 					Packages: state.HasWallyConfig,
 				},
-				Commands: map[string]config.TaskValue{
+				Tasks: map[string]config.TaskValue{
 					"dev":    config.NewTaskValue(fmt.Sprintf("rojo sourcemap %s --output sourcemap.json", rojoProjectPath), fmt.Sprintf("rojo serve %s", rojoProjectPath)),
 					"build":  config.NewTaskValue(fmt.Sprintf("rojo build %s --output build.rbxl", rojoProjectPath)),
 					"lint":   config.NewTaskValue("selene src"),
@@ -164,13 +191,12 @@ func newInitCmd(deps initCommandDeps) *cobra.Command {
 	return cmd
 }
 
-func confirmCreateInPlace(cmd *cobra.Command, rootPath string) (bool, error) {
+func confirmCreateInPlace(cmd *cobra.Command, reader *bufio.Reader, rootPath string) (bool, error) {
 	writer := cmd.OutOrStdout()
 	fmt.Fprintln(writer)
 	fmt.Fprintf(writer, "%s No adoptable repository config was found in %s.\n", styleWarning(writer, "warning:"), rootPath)
 	fmt.Fprintf(writer, "%s %s %s ", promptPrefix(writer), styleAccent(writer, "Create a new Luumen project in this directory?"), styleMuted(writer, "[y/N]:"))
 
-	reader := bufio.NewReader(cmd.InOrStdin())
 	line, err := reader.ReadString('\n')
 	if err != nil && !errors.Is(err, io.EOF) {
 		return false, fmt.Errorf("failed to read confirmation input: %w", err)
@@ -180,6 +206,72 @@ func confirmCreateInPlace(cmd *cobra.Command, rootPath string) (bool, error) {
 	fmt.Fprintln(writer)
 	if errors.Is(err, io.EOF) && choice == "" {
 		return false, fmt.Errorf("unable to adopt repository: no %s, %s, or Rojo project files were found. Next: run luu create <name> or rerun luu init interactively to confirm in-place scaffolding", workspace.RokitConfigFile, workspace.WallyConfigFile)
+	}
+
+	switch choice {
+	case "y", "yes":
+		return true, nil
+	case "", "n", "no":
+		return false, nil
+	default:
+		return false, fmt.Errorf("invalid confirmation %q. Next: answer y or n", choice)
+	}
+}
+
+func maybeCreateBasicConfig(cmd *cobra.Command, reader *bufio.Reader, state workspace.Workspace, writeConfig func(path string, cfg *config.Config) error, reason string) (bool, error) {
+	empty, err := directoryIsEmpty(state.RootPath)
+	if err != nil {
+		return false, fmt.Errorf("failed to inspect directory %s: %w", state.RootPath, err)
+	}
+	if empty {
+		return false, nil
+	}
+
+	confirmed, err := confirmCreateBasicConfig(cmd, reader, state.RootPath, reason)
+	if err != nil {
+		return false, err
+	}
+	if !confirmed {
+		return false, nil
+	}
+
+	cfg := &config.Config{
+		Project: config.ProjectConfig{
+			Name: filepath.Base(state.RootPath),
+		},
+		Install: config.InstallConfig{
+			Tools:    state.HasRokitConfig,
+			Packages: state.HasWallyConfig,
+		},
+	}
+	if err := writeConfig(state.LuumenConfigPath, cfg); err != nil {
+		return false, fmt.Errorf("failed to write basic %s: %w", workspace.LuumenConfigFile, err)
+	}
+
+	statusf(cmd, "Generated basic %s", workspace.LuumenConfigFile)
+	if cfg.Install.Tools || cfg.Install.Packages {
+		nextStepsf(cmd, "Basic setup complete", "luu install", "define tasks in project.config.luau", "luu doctor")
+	} else {
+		nextStepsf(cmd, "Basic setup complete", "define tasks in project.config.luau", "luu doctor")
+	}
+	return true, nil
+}
+
+func confirmCreateBasicConfig(cmd *cobra.Command, reader *bufio.Reader, rootPath string, reason string) (bool, error) {
+	writer := cmd.OutOrStdout()
+	fmt.Fprintln(writer)
+	fmt.Fprintf(writer, "%s %s\n", styleWarning(writer, "warning:"), strings.TrimSpace(reason))
+	fmt.Fprintf(writer, "%s %s %s ", promptPrefix(writer), styleAccent(writer, fmt.Sprintf("Create a basic %s in %s instead?", workspace.LuumenConfigFile, rootPath)), styleMuted(writer, "[y/N]:"))
+
+	line, err := reader.ReadString('\n')
+	if err != nil && !errors.Is(err, io.EOF) {
+		return false, fmt.Errorf("failed to read confirmation input: %w", err)
+	}
+
+	choice := strings.ToLower(strings.TrimSpace(line))
+	fmt.Fprintln(writer)
+	if errors.Is(err, io.EOF) && choice == "" {
+		return false, fmt.Errorf("unable to continue init automatically. Next: rerun luu init interactively to create a basic %s or use luu create <name> in a new directory", workspace.LuumenConfigFile)
 	}
 
 	switch choice {

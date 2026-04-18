@@ -77,22 +77,17 @@ func newBuiltInWorkflowCmd(commandName string, short string, example string, dep
 				return err
 			}
 
-			commands, resolveErr := resolveBuiltInCommandSequence(commandName, cfg, state)
-			if len(commands) > 0 {
-				printWorkflowPlan(cmd, workflowWorkspaceName(state, cfg), commandName, commands)
+			taskName, taskCfg, steps, resolveErr := resolveBuiltInTask(commandName, cfg, state)
+			if len(steps) > 0 {
+				printWorkflowPlan(cmd, workflowWorkspaceName(state, cfg), taskName, steps)
 			}
 			if resolveErr != nil {
 				return resolveErr
 			}
 
-			runner := workflowTaskRunner(cmd, deps, commandName, state, commands)
-			syntheticCfg := &config.Config{
-				Tasks: map[string]config.TaskValue{
-					"__builtin_" + commandName: config.NewTaskValue(commands...),
-				},
-			}
-			if err := runner.RunNamedTask(cmd.Context(), "__builtin_"+commandName, syntheticCfg, workflowRunOptions(cmd, state.RootPath)); err != nil {
-				return fmt.Errorf("command %q failed: %w", commandName, err)
+			runner := workflowTaskRunner(cmd, deps, commandName, state, steps)
+			if err := runner.RunNamedTask(cmd.Context(), taskName, taskCfg, workflowRunOptions(cmd, state.RootPath)); err != nil {
+				return fmt.Errorf("task %q failed: %w", taskName, err)
 			}
 			return nil
 		},
@@ -101,13 +96,13 @@ func newBuiltInWorkflowCmd(commandName string, short string, example string, dep
 	return cmd
 }
 
-func workflowTaskRunner(cmd *cobra.Command, deps workflowCommandDeps, commandName string, state workspace.Workspace, commands []string) taskRunner {
+func workflowTaskRunner(cmd *cobra.Command, deps workflowCommandDeps, commandName string, state workspace.Workspace, steps []string) taskRunner {
 	if deps.taskRunner != nil {
 		return deps.taskRunner
 	}
 
 	baseRunner := newSelfHealingShellRunner(cmd, commandName, state, deps.rokitInstaller)
-	shellRunner := newWorkflowStepShellRunner(cmd, baseRunner, len(commands))
+	shellRunner := newWorkflowStepShellRunner(cmd, baseRunner, len(steps))
 	return tasks.NewEngine(shellRunner, "luu")
 }
 
@@ -158,45 +153,58 @@ func workflowRunOptions(cmd *cobra.Command, workingDir string) tasks.RunOptions 
 	}
 }
 
-func resolveBuiltInCommandSequence(commandName string, cfg *config.Config, state workspace.Workspace) ([]string, error) {
+func resolveBuiltInTask(commandName string, cfg *config.Config, state workspace.Workspace) (string, *config.Config, []string, error) {
 	if cfg != nil {
-		if commandValue, ok := cfg.Commands[commandName]; ok {
-			if len(commandValue.Commands) > 0 {
-				return append([]string(nil), commandValue.Commands...), nil
-			}
+		if taskValue, ok := cfg.Tasks[commandName]; ok {
+			return commandName, cfg, append([]string(nil), taskValue.Steps...), nil
 		}
 	}
 
+	steps, err := resolveBuiltInTaskFallback(commandName, state)
+	if err != nil {
+		return commandName, nil, steps, err
+	}
+
+	return commandName, &config.Config{
+		Tasks: map[string]config.TaskValue{
+			commandName: config.NewTaskValue(steps...),
+		},
+	}, steps, nil
+}
+
+func resolveBuiltInTaskFallback(commandName string, state workspace.Workspace) ([]string, error) {
 	switch commandName {
 	case "dev":
 		projectPath, usedFallback, err := resolveDefaultRojoProjectPathForPlan(state)
 		if err != nil {
 			return nil, err
 		}
-		commands := []string{
+		steps := []string{
 			fmt.Sprintf("rojo sourcemap %s --output sourcemap.json", projectPath),
 			fmt.Sprintf("rojo serve %s", projectPath),
 		}
 		if usedFallback {
-			return commands, missingDefaultRojoProjectError(commandName, state)
+			return steps, missingDefaultRojoProjectError(commandName, state)
 		}
-		return commands, nil
+		return steps, nil
 	case "build":
 		projectPath, usedFallback, err := resolveDefaultRojoProjectPathForPlan(state)
 		if err != nil {
 			return nil, err
 		}
-		commands := []string{fmt.Sprintf("rojo build %s --output build.rbxl", projectPath)}
+		steps := []string{fmt.Sprintf("rojo build %s --output build.rbxl", projectPath)}
 		if usedFallback {
-			return commands, missingDefaultRojoProjectError(commandName, state)
+			return steps, missingDefaultRojoProjectError(commandName, state)
 		}
-		return commands, nil
+		return steps, nil
+	case "lint", "format", "test":
+		return nil, fmt.Errorf("task %q is not defined and Luumen has no default implementation. Next: define tasks.%s in %s", commandName, commandName, workspace.LuumenConfigFile)
 	default:
-		return nil, fmt.Errorf("command %q is not configured. Next: define commands.%s in %s", commandName, commandName, workspace.LuumenConfigFile)
+		return nil, fmt.Errorf("task %q is not defined and Luumen has no default implementation. Next: define tasks.%s in %s", commandName, commandName, workspace.LuumenConfigFile)
 	}
 }
 
-func printWorkflowPlan(cmd *cobra.Command, workspaceName string, commandName string, commands []string) {
+func printWorkflowPlan(cmd *cobra.Command, workspaceName string, taskName string, steps []string) {
 	if isQuiet(cmd) {
 		return
 	}
@@ -204,15 +212,15 @@ func printWorkflowPlan(cmd *cobra.Command, workspaceName string, commandName str
 	writer := cmd.OutOrStdout()
 	prefix := styleAccent(writer, "[luu]")
 	fmt.Fprintf(writer, "%s %s %s\n", prefix, styleMuted(writer, "workspace:"), workspaceName)
-	fmt.Fprintf(writer, "%s %s %s\n", prefix, styleMuted(writer, "command:"), styleAccent(writer, commandName))
+	fmt.Fprintf(writer, "%s %s %s\n", prefix, styleMuted(writer, "task:"), styleAccent(writer, taskName))
 
-	if len(commands) == 1 {
-		fmt.Fprintf(writer, "%s %s %s\n", prefix, styleMuted(writer, "running:"), styleCommand(writer, shellStyleCommand(commands[0])))
+	if len(steps) == 1 {
+		fmt.Fprintf(writer, "%s %s %s\n", prefix, styleMuted(writer, "running:"), styleCommand(writer, shellStyleCommand(steps[0])))
 		fmt.Fprintln(writer)
 		return
 	}
 
-	fmt.Fprintf(writer, "%s %s %d %s\n", prefix, styleMuted(writer, "resolved:"), len(commands), styleMuted(writer, "steps"))
+	fmt.Fprintf(writer, "%s %s %d %s\n", prefix, styleMuted(writer, "resolved:"), len(steps), styleMuted(writer, "steps"))
 	fmt.Fprintln(writer)
 }
 
@@ -240,17 +248,6 @@ func loadWorkflowContext(deps workflowCommandDeps) (workspace.Workspace, *config
 	return state, cfg, nil
 }
 
-func resolveDefaultRojoProjectPath(state workspace.Workspace) (string, error) {
-	if !state.HasRojoProject || len(state.RojoProjectPaths) == 0 {
-		return "", fmt.Errorf("default implementation for this command requires a project file (*.project.json) in %s. Next: add default.project.json or define a commands override", state.RootPath)
-	}
-	path, err := toRelativeConfigPath(state.RootPath, state.RojoProjectPaths[0])
-	if err != nil {
-		return "", fmt.Errorf("failed to resolve Rojo project path: %w", err)
-	}
-	return path, nil
-}
-
 func resolveDefaultRojoProjectPathForPlan(state workspace.Workspace) (string, bool, error) {
 	if !state.HasRojoProject || len(state.RojoProjectPaths) == 0 {
 		return "default.project.json", true, nil
@@ -265,14 +262,5 @@ func resolveDefaultRojoProjectPathForPlan(state workspace.Workspace) (string, bo
 }
 
 func missingDefaultRojoProjectError(commandName string, state workspace.Workspace) error {
-	return fmt.Errorf("no Rojo project file (*.project.json) was found in %s, so the default %q implementation cannot run. Next: add default.project.json or define commands.%s in %s", state.RootPath, commandName, commandName, workspace.LuumenConfigFile)
-}
-
-func runSyntheticCommandTask(ctx context.Context, runner taskRunner, commandName string, commands []string, options tasks.RunOptions) error {
-	syntheticCfg := &config.Config{
-		Tasks: map[string]config.TaskValue{
-			"__builtin_" + commandName: config.NewTaskValue(commands...),
-		},
-	}
-	return runner.RunNamedTask(ctx, "__builtin_"+commandName, syntheticCfg, options)
+	return fmt.Errorf("no Rojo project file (*.project.json) was found in %s, so the default %q task cannot run. Next: add default.project.json or define tasks.%s in %s", state.RootPath, commandName, commandName, workspace.LuumenConfigFile)
 }

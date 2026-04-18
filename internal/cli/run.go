@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -74,11 +73,6 @@ func newRunCmd(deps runCommandDeps) *cobra.Command {
 				Stderr:     stderr,
 				Stdin:      cmd.InOrStdin(),
 			}); err != nil {
-				if errors.Is(err, tasks.ErrTaskNotFound) {
-					if _, exists := cfg.Commands[args[0]]; exists {
-						return fmt.Errorf("task %q is defined under commands, but luu run only executes tasks. Next: move %q into tasks in %s", args[0], args[0], workspace.LuumenConfigFile)
-					}
-				}
 				return fmt.Errorf("failed to run task %q: %w", args[0], err)
 			}
 
