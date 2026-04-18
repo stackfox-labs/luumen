@@ -1,0 +1,96 @@
+name: Nightly Build
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      has_commits: ${{ steps.check.outputs.has_commits }}
+      tag: ${{ steps.check.outputs.tag }}
+      tag_exists: ${{ steps.check.outputs.tag_exists }}
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for new commits since last nightly
+        id: check
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG="nightly-$(date -u +%Y-%m-%d)"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+
+          if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
+            echo "Nightly tag already exists for today: $TAG"
+            echo "tag_exists=true" >> "$GITHUB_OUTPUT"
+            echo "has_commits=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "tag_exists=false" >> "$GITHUB_OUTPUT"
+
+          LAST=$(git tag -l "nightly-*" --sort=-creatordate | head -1)
+          if [ -z "$LAST" ]; then
+            echo "No previous nightly tag found - first run."
+            echo "has_commits=true" >> "$GITHUB_OUTPUT"
+          else
+            COUNT=$(git rev-list --count "$LAST"..HEAD)
+            echo "Commits since $LAST: $COUNT"
+            if [ "$COUNT" -gt 0 ]; then
+              echo "has_commits=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "has_commits=false" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+  publish:
+    needs: check
+    if: needs.check.outputs.has_commits == 'true' || needs.check.outputs.tag_exists == 'true'
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create nightly tag
+        if: needs.check.outputs.tag_exists != 'true'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          TAG="${{ needs.check.outputs.tag }}"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git tag -a "$TAG" -m "Nightly build $TAG"
+          git push origin "refs/tags/$TAG"
+
+      - name: Trigger release workflow
+        uses: actions/github-script@v7
+        env:
+          NIGHTLY_TAG: ${{ needs.check.outputs.tag }}
+          WORKFLOW_REF: ${{ github.ref_name }}
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: "release.yml",
+              ref: process.env.WORKFLOW_REF,
+              inputs: {
+                tag: process.env.NIGHTLY_TAG,
+              },
+            });

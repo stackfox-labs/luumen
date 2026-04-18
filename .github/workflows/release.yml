@@ -4,6 +4,7 @@ on:
   push:
     tags:
       - "v*"
+      - "nightly-*"
   workflow_dispatch:
     inputs:
       tag:
@@ -146,9 +147,11 @@ jobs:
               per_page: 100,
             });
 
-            const targetIndex = tags.findIndex((tag) => tag.name === targetTag);
-            const previousTag = targetIndex >= 0 && targetIndex + 1 < tags.length
-              ? tags[targetIndex + 1].name
+            const tagPrefix = targetTag.startsWith("nightly-") ? "nightly-" : "v";
+            const matchingTags = tags.filter((tag) => tag.name.startsWith(tagPrefix));
+            const targetIndex = matchingTags.findIndex((tag) => tag.name === targetTag);
+            const previousTag = targetIndex >= 0 && targetIndex + 1 < matchingTags.length
+              ? matchingTags[targetIndex + 1].name
               : null;
 
             let commits = [];
@@ -197,6 +200,7 @@ jobs:
         with:
           tag_name: ${{ env.TARGET_TAG }}
           name: ${{ env.TARGET_TAG }}
+          prerelease: ${{ startsWith(env.TARGET_TAG, 'nightly-') }}
           generate_release_notes: true
           append_body: true
           body: ${{ steps.commit_notes.outputs.result }}
