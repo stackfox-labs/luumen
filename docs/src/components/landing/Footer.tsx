@@ -10,8 +10,6 @@ const PROJECT_LINKS = [
 ]
 
 const COMMUNITY_LINKS = [
-  { label: "Discord", href: "#" },
-  { label: "X / Twitter", href: "#" },
   { label: "Issues", href: `${REPO_URL}/issues` },
   { label: "Discussions", href: `${REPO_URL}/discussions` },
 ]
