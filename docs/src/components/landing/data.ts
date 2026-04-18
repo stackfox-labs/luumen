@@ -174,28 +174,22 @@ export const FEATURES = [
 export const CONFIG_SOURCE = `return {
   project = {
     name = "my-game",
-    version = "0.1.0",
+    version = "0.1.0"
   },
 
   install = {
     tools = true,
-    packages = true,
+    packages = true
   },
 
   tasks = {
-    dev = {
-      "rojo sourcemap default.project.json --output sourcemap.json",
-      "rojo serve default.project.json",
-    },
-
-    build = "rojo build default.project.json --output build.rbxl",
-
+    dev = "rojo serve default.project.json",
     lint = "selene src",
     format = "stylua src",
 
     check = {
       "luu lint",
-      "luu format",
-    },
-  },
+      "luu format"
+    }
+  }
 }`

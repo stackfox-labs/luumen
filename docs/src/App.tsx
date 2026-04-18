@@ -3,6 +3,7 @@ import { CommandsShowcase } from "./components/landing/CommandsShowcase"
 import { ConfigShowcase } from "./components/landing/ConfigShowcase"
 import { CTASection } from "./components/landing/CTASection"
 import { FeatureGrid } from "./components/landing/FeatureGrid"
+import { SelfHealingSection } from "./components/landing/SelfHealingSection"
 import { Footer } from "./components/landing/Footer"
 import { GettingStarted } from "./components/landing/GettingStarted"
 import { Hero } from "./components/landing/Hero"
@@ -27,6 +28,7 @@ export default function App() {
         <Hero />
         <GettingStarted />
         <FeatureGrid />
+        <SelfHealingSection />
         <CommandsShowcase />
         <ConfigShowcase />
         <AdoptionSection />
