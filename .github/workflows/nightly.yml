@@ -28,7 +28,17 @@ jobs:
         run: |
           set -euo pipefail
 
-          TAG="nightly-$(date -u +%Y-%m-%d)"
+          LAST_STABLE=$(git tag -l "v*" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -1 || true)
+          if [ -z "$LAST_STABLE" ]; then
+            LAST_STABLE="v0.0.0"
+          fi
+
+          VERSION="${LAST_STABLE#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$VERSION"
+          NEXT_PATCH=$((PATCH + 1))
+          NEXT_VERSION="v${MAJOR}.${MINOR}.${NEXT_PATCH}"
+
+          TAG="${NEXT_VERSION}-nightly-$(date -u +%Y-%m-%d)"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
           if git ls-remote --tags origin "refs/tags/$TAG" | grep -q .; then
@@ -40,7 +50,7 @@ jobs:
 
           echo "tag_exists=false" >> "$GITHUB_OUTPUT"
 
-          LAST=$(git tag -l "nightly-*" --sort=-creatordate | head -1)
+          LAST=$(git tag -l "v*-nightly-*" --sort=-creatordate | head -1)
           if [ -z "$LAST" ]; then
             echo "No previous nightly tag found - first run."
             echo "has_commits=true" >> "$GITHUB_OUTPUT"

@@ -8,7 +8,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Existing tag to release (for manual runs), e.g. v1.2.3"
+        description: "Existing tag to release (manual runs), e.g. v1.2.3 or v1.2.4-nightly-2026-04-18"
         required: true
         type: string
 
@@ -147,8 +147,16 @@ jobs:
               per_page: 100,
             });
 
-            const tagPrefix = targetTag.startsWith("nightly-") ? "nightly-" : "v";
-            const matchingTags = tags.filter((tag) => tag.name.startsWith(tagPrefix));
+            const isNightly = targetTag.includes("-nightly-");
+            const nightlyPattern = /^v\d+\.\d+\.\d+-nightly-\d{4}-\d{2}-\d{2}$/;
+            const stablePattern = /^v\d+\.\d+\.\d+$/;
+            const matchingTags = tags.filter((tag) => {
+              if (isNightly) {
+                return nightlyPattern.test(tag.name);
+              }
+
+              return stablePattern.test(tag.name);
+            });
             const targetIndex = matchingTags.findIndex((tag) => tag.name === targetTag);
             const previousTag = targetIndex >= 0 && targetIndex + 1 < matchingTags.length
               ? matchingTags[targetIndex + 1].name
@@ -200,7 +208,7 @@ jobs:
         with:
           tag_name: ${{ env.TARGET_TAG }}
           name: ${{ env.TARGET_TAG }}
-          prerelease: ${{ startsWith(env.TARGET_TAG, 'nightly-') }}
+          prerelease: ${{ contains(env.TARGET_TAG, '-nightly-') }}
           generate_release_notes: true
           append_body: true
           body: ${{ steps.commit_notes.outputs.result }}
