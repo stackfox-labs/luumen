@@ -3,6 +3,8 @@ package cli
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -120,6 +122,55 @@ func TestLintRequiresConfiguredTask(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "tasks.lint") {
 		t.Fatalf("expected actionable lint configuration guidance, got: %v", err)
+	}
+}
+
+func TestLintUsesTaskScopedConfigLoading(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	configPath := filepath.Join(root, workspace.LuumenConfigFile)
+	if err := os.WriteFile(configPath, []byte(strings.TrimSpace(`
+return {
+    project = {
+        name = "example-project",
+        license = "Apache-2.0",
+    },
+
+    install = {
+        tools = "yes",
+    },
+
+    tasks = {
+        lint = "selene src",
+    },
+
+    lute = {
+        lint = {
+			ignores = { "**/*.snap.luau" },
+		},
+    },
+}
+`)+"\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+
+	runner := &fakeWorkflowRunner{}
+	err := executeWorkflowCommand(t, newLintCmd(workflowCommandDeps{
+		detectWorkspace: func(_ string) (workspace.Workspace, error) {
+			return workspace.Workspace{RootPath: root, HasLuumenConfig: true, LuumenConfigPath: configPath}, nil
+		},
+		loadConfig: config.LoadTasks,
+		taskRunner: runner,
+	}))
+	if err != nil {
+		t.Fatalf("expected lint success with unrelated invalid config, got: %v", err)
+	}
+	if runner.lastCfg.Project.Name != "example-project" {
+		t.Fatalf("expected project name to remain available, got %+v", runner.lastCfg.Project)
+	}
+	if got := runner.lastCfg.Tasks["lint"].Steps; len(got) != 1 || got[0] != "selene src" {
+		t.Fatalf("expected lint steps to load, got %#v", got)
 	}
 }
 

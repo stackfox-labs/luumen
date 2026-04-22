@@ -32,7 +32,7 @@ type wallyInstaller interface {
 func defaultInstallCommandDeps() installCommandDeps {
 	return installCommandDeps{
 		detectWorkspace: workspace.Detect,
-		loadConfig:      config.Load,
+		loadConfig:      config.LoadTasks,
 		rokitInstaller:  tools.NewRokit(nil, ""),
 		wallyInstaller:  tools.NewWally(nil, ""),
 	}
@@ -43,7 +43,7 @@ func newInstallCmd(deps installCommandDeps) *cobra.Command {
 		deps.detectWorkspace = workspace.Detect
 	}
 	if deps.loadConfig == nil {
-		deps.loadConfig = config.Load
+		deps.loadConfig = config.LoadTasks
 	}
 	if deps.rokitInstaller == nil {
 		deps.rokitInstaller = tools.NewRokit(nil, "")

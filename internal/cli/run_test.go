@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -100,6 +102,50 @@ func TestRunCommandTaskFailurePropagates(t *testing.T) {
 	}
 	if !errors.Is(err, taskErr) {
 		t.Fatalf("expected wrapped task error, got: %v", err)
+	}
+}
+
+func TestRunCommandUsesTaskScopedConfigLoading(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	configPath := filepath.Join(root, workspace.LuumenConfigFile)
+	if err := os.WriteFile(configPath, []byte(strings.TrimSpace(`
+return {
+    install = {
+        tools = "yes",
+    },
+
+    tasks = {
+        verify = "tool check src",
+    },
+
+    lute = {
+        lint = {
+			ignores = { "**/*.snap.luau" },
+		},
+    },
+}
+`)+"\n"), 0o644); err != nil {
+		t.Fatalf("failed to write config: %v", err)
+	}
+
+	runner := &fakeTaskRunner{}
+	err := executeRunCommand(runCommandDeps{
+		detectWorkspace: func(_ string) (workspace.Workspace, error) {
+			return workspace.Workspace{RootPath: root, HasLuumenConfig: true, LuumenConfigPath: configPath}, nil
+		},
+		loadConfig: config.LoadTasks,
+		taskRunner: runner,
+	}, "verify")
+	if err != nil {
+		t.Fatalf("expected run command success with unrelated invalid config, got: %v", err)
+	}
+	if runner.lastTask != "verify" {
+		t.Fatalf("expected verify task, got %q", runner.lastTask)
+	}
+	if got := runner.lastCfg.Tasks["verify"].Steps; len(got) != 1 || got[0] != "tool check src" {
+		t.Fatalf("expected task steps to load, got %#v", got)
 	}
 }
 

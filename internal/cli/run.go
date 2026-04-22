@@ -25,7 +25,7 @@ type runCommandDeps struct {
 func defaultRunCommandDeps() runCommandDeps {
 	return runCommandDeps{
 		detectWorkspace: workspace.Detect,
-		loadConfig:      config.Load,
+		loadConfig:      config.LoadTasks,
 		taskRunner:      nil,
 	}
 }
@@ -35,7 +35,7 @@ func newRunCmd(deps runCommandDeps) *cobra.Command {
 		deps.detectWorkspace = workspace.Detect
 	}
 	if deps.loadConfig == nil {
-		deps.loadConfig = config.Load
+		deps.loadConfig = config.LoadTasks
 	}
 	cmd := &cobra.Command{
 		Use:   "run <task>",

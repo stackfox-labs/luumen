@@ -25,7 +25,7 @@ type workflowCommandDeps struct {
 func defaultWorkflowCommandDeps() workflowCommandDeps {
 	return workflowCommandDeps{
 		detectWorkspace: workspace.Detect,
-		loadConfig:      config.Load,
+		loadConfig:      config.LoadTasks,
 		rokitInstaller:  tools.NewRokit(nil, ""),
 	}
 }
@@ -35,7 +35,7 @@ func ensureWorkflowDeps(deps workflowCommandDeps) workflowCommandDeps {
 		deps.detectWorkspace = workspace.Detect
 	}
 	if deps.loadConfig == nil {
-		deps.loadConfig = config.Load
+		deps.loadConfig = config.LoadTasks
 	}
 	if deps.rokitInstaller == nil {
 		deps.rokitInstaller = tools.NewRokit(nil, "")

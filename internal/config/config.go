@@ -64,7 +64,32 @@ type dataValue interface{}
 type dataObject map[string]dataValue
 type dataArray []dataValue
 
+type LoadOptions struct {
+	Project  bool
+	Install  bool
+	Tools    bool
+	Packages bool
+	Tasks    bool
+}
+
+var FullLoadOptions = LoadOptions{
+	Project:  true,
+	Install:  true,
+	Tools:    true,
+	Packages: true,
+	Tasks:    true,
+}
+
+var TaskLoadOptions = LoadOptions{
+	Project: true,
+	Tasks:   true,
+}
+
 func Load(path string) (*Config, error) {
+	return LoadWithOptions(path, FullLoadOptions)
+}
+
+func LoadWithOptions(path string, options LoadOptions) (*Config, error) {
 	if path == "" {
 		return nil, errors.New("config path is required")
 	}
@@ -77,7 +102,7 @@ func Load(path string) (*Config, error) {
 		return nil, fmt.Errorf("failed to read %s: %w", path, err)
 	}
 
-	cfg, err := decode(contents)
+	cfg, err := decodeWithOptions(contents, options)
 	if err != nil {
 		return nil, fmt.Errorf("invalid %s: %w", filepath.Base(path), err)
 	}
@@ -87,6 +112,10 @@ func Load(path string) (*Config, error) {
 
 func LoadFromDir(dir string) (*Config, error) {
 	return Load(filepath.Join(dir, FileName))
+}
+
+func LoadTasks(path string) (*Config, error) {
+	return LoadWithOptions(path, TaskLoadOptions)
 }
 
 func Write(path string, cfg *Config) error {
@@ -114,11 +143,15 @@ func WriteToDir(dir string, cfg *Config) error {
 }
 
 func decode(contents []byte) (*Config, error) {
+	return decodeWithOptions(contents, FullLoadOptions)
+}
+
+func decodeWithOptions(contents []byte, options LoadOptions) (*Config, error) {
 	root, err := parseRootObject(string(contents))
 	if err != nil {
 		return nil, err
 	}
-	return fromDataObject(root)
+	return fromDataObject(root, options)
 }
 
 func parseRootObject(source string) (dataObject, error) {
@@ -310,52 +343,48 @@ func unwrapParenExpr(expr ast.Expr) ast.Expr {
 	}
 }
 
-func fromDataObject(root dataObject) (*Config, error) {
+func fromDataObject(root dataObject, options LoadOptions) (*Config, error) {
 	cfg := &Config{}
 
-	allowedSections := map[string]struct{}{
-		"project":  {},
-		"install":  {},
-		"tools":    {},
-		"packages": {},
-		"tasks":    {},
-	}
-
-	for _, key := range sortedObjectKeys(root) {
-		if _, ok := allowedSections[key]; !ok {
-			return nil, fmt.Errorf("unknown top-level section %q", key)
+	if options.Project {
+		project, err := parseProjectSection(root["project"])
+		if err != nil {
+			return nil, err
 		}
+		cfg.Project = project
 	}
 
-	project, err := parseProjectSection(root["project"])
-	if err != nil {
-		return nil, err
+	if options.Install {
+		install, err := parseInstallSection(root["install"])
+		if err != nil {
+			return nil, err
+		}
+		cfg.Install = install
 	}
-	cfg.Project = project
 
-	install, err := parseInstallSection(root["install"])
-	if err != nil {
-		return nil, err
+	if options.Tools {
+		tools, err := parseStringMapSection("tools", root["tools"])
+		if err != nil {
+			return nil, err
+		}
+		cfg.Tools = tools
 	}
-	cfg.Install = install
 
-	tools, err := parseStringMapSection("tools", root["tools"])
-	if err != nil {
-		return nil, err
+	if options.Packages {
+		packages, err := parseStringMapSection("packages", root["packages"])
+		if err != nil {
+			return nil, err
+		}
+		cfg.Packages = packages
 	}
-	cfg.Tools = tools
 
-	packages, err := parseStringMapSection("packages", root["packages"])
-	if err != nil {
-		return nil, err
+	if options.Tasks {
+		tasks, err := parseTaskMapSection("tasks", root["tasks"])
+		if err != nil {
+			return nil, err
+		}
+		cfg.Tasks = tasks
 	}
-	cfg.Packages = packages
-
-	tasks, err := parseTaskMapSection("tasks", root["tasks"])
-	if err != nil {
-		return nil, err
-	}
-	cfg.Tasks = tasks
 
 	return cfg, nil
 }
@@ -371,32 +400,34 @@ func parseProjectSection(value dataValue) (ProjectConfig, error) {
 	}
 
 	cfg := ProjectConfig{}
-	allowedKeys := map[string]struct{}{
-		"name":        {},
-		"version":     {},
-		"author":      {},
-		"description": {},
-	}
-
 	for _, key := range sortedObjectKeys(object) {
-		if _, ok := allowedKeys[key]; !ok {
-			return ProjectConfig{}, fmt.Errorf("project.%s is not supported", key)
-		}
-
-		stringValue, err := requireString("project."+key, object[key])
-		if err != nil {
-			return ProjectConfig{}, err
-		}
-
 		switch key {
 		case "name":
+			stringValue, err := requireString("project."+key, object[key])
+			if err != nil {
+				return ProjectConfig{}, err
+			}
 			cfg.Name = stringValue
 		case "version":
+			stringValue, err := requireString("project."+key, object[key])
+			if err != nil {
+				return ProjectConfig{}, err
+			}
 			cfg.Version = stringValue
 		case "author":
+			stringValue, err := requireString("project."+key, object[key])
+			if err != nil {
+				return ProjectConfig{}, err
+			}
 			cfg.Author = stringValue
 		case "description":
+			stringValue, err := requireString("project."+key, object[key])
+			if err != nil {
+				return ProjectConfig{}, err
+			}
 			cfg.Description = stringValue
+		default:
+			continue
 		}
 	}
 
@@ -414,26 +445,22 @@ func parseInstallSection(value dataValue) (InstallConfig, error) {
 	}
 
 	cfg := InstallConfig{}
-	allowedKeys := map[string]struct{}{
-		"tools":    {},
-		"packages": {},
-	}
-
 	for _, key := range sortedObjectKeys(object) {
-		if _, ok := allowedKeys[key]; !ok {
-			return InstallConfig{}, fmt.Errorf("install.%s is not supported", key)
-		}
-
-		booleanValue, err := requireBool("install."+key, object[key])
-		if err != nil {
-			return InstallConfig{}, err
-		}
-
 		switch key {
 		case "tools":
+			booleanValue, err := requireBool("install."+key, object[key])
+			if err != nil {
+				return InstallConfig{}, err
+			}
 			cfg.Tools = booleanValue
 		case "packages":
+			booleanValue, err := requireBool("install."+key, object[key])
+			if err != nil {
+				return InstallConfig{}, err
+			}
 			cfg.Packages = booleanValue
+		default:
+			continue
 		}
 	}
 

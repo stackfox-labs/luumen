@@ -135,26 +135,75 @@ func TestLoadMissingConfig(t *testing.T) {
 	}
 }
 
-func TestLoadLegacyCommandsSectionRejected(t *testing.T) {
+func TestLoadAllowsUnknownTopLevelSection(t *testing.T) {
 	t.Parallel()
 
 	path := writeConfigFile(t, `
 return {
-    commands = {
+    tasks = {
         build = "rojo build default.project.json --output build.rbxl",
+    },
+
+    lute = {
+        lint = {
+			ignores = { "**/*.snap.luau" },
+		},
     },
 }
 `)
 
 	cfg, err := Load(path)
-	if err == nil {
-		t.Fatal("expected legacy commands section to be rejected")
+	if err != nil {
+		t.Fatalf("expected unknown top-level section to be ignored, got: %v", err)
 	}
-	if cfg != nil {
-		t.Fatalf("expected no config on legacy commands error, got %+v", cfg)
+	if got := cfg.Tasks["build"].Steps; len(got) != 1 || got[0] != "rojo build default.project.json --output build.rbxl" {
+		t.Fatalf("expected tasks to load with unrelated section present, got %#v", got)
 	}
-	if !strings.Contains(err.Error(), "unknown top-level section \"commands\"") {
-		t.Fatalf("expected legacy commands guidance, got: %v", err)
+}
+
+func TestLoadAllowsUnknownProjectFields(t *testing.T) {
+	t.Parallel()
+
+	path := writeConfigFile(t, `
+return {
+    project = {
+        name = "example-project",
+        version = "1.2.3",
+        description = "Example description",
+        author = "Example Author",
+        license = "Apache-2.0",
+    },
+}
+`)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("expected project extras to be ignored, got: %v", err)
+	}
+	if cfg.Project.Name != "example-project" || cfg.Project.Version != "1.2.3" || cfg.Project.Author != "Example Author" {
+		t.Fatalf("expected supported project fields to load, got %+v", cfg.Project)
+	}
+}
+
+func TestLoadAllowsUnknownInstallFields(t *testing.T) {
+	t.Parallel()
+
+	path := writeConfigFile(t, `
+return {
+    install = {
+        tools = true,
+        packages = true,
+        frozen = true,
+    },
+}
+`)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("expected install extras to be ignored, got: %v", err)
+	}
+	if !cfg.Install.Tools || !cfg.Install.Packages {
+		t.Fatalf("expected supported install fields to load, got %+v", cfg.Install)
 	}
 }
 
@@ -207,6 +256,61 @@ return {
 		if got[index] != expected[index] {
 			t.Fatalf("expected %#v, got %#v", expected, got)
 		}
+	}
+}
+
+func TestLoadTasksIgnoresInvalidUnrelatedSections(t *testing.T) {
+	t.Parallel()
+
+	path := writeConfigFile(t, `
+return {
+    install = {
+        tools = "yes",
+    },
+
+    tasks = {
+        format = "tool format-check src",
+    },
+
+    lute = {
+        setting = true,
+    },
+}
+`)
+
+	cfg, err := LoadTasks(path)
+	if err != nil {
+		t.Fatalf("expected task-scoped load success, got: %v", err)
+	}
+	if got := cfg.Tasks["format"].Steps; len(got) != 1 || got[0] != "tool format-check src" {
+		t.Fatalf("expected format task to load, got %#v", got)
+	}
+}
+
+func TestLoadTasksStillFailsForInvalidTasks(t *testing.T) {
+	t.Parallel()
+
+	path := writeConfigFile(t, `
+return {
+    tasks = {
+        ci = {
+            "luu lint",
+            true,
+        },
+    },
+
+    lute = {
+        setting = true,
+    },
+}
+`)
+
+	_, err := LoadTasks(path)
+	if err == nil {
+		t.Fatal("expected invalid tasks to fail")
+	}
+	if !strings.Contains(err.Error(), "tasks.ci[1]: expected a string") {
+		t.Fatalf("expected task validation error, got %v", err)
 	}
 }
 
