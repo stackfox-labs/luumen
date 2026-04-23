@@ -51,7 +51,7 @@ func newInitCmd(deps initCommandDeps) *cobra.Command {
 		Use:   "init",
 		Short: "Adopt an existing repo into Luumen",
 		Long: "Init inspects the current repository for Rokit, Wally, and Rojo files, " +
-			"then generates project.config.luau with sensible default task mappings.",
+			"then generates .config.luau with sensible default task mappings.",
 		Example: "luu init\n" +
 			"luu init --quiet",
 		Args: requireNoPositionalArgs(),
@@ -164,16 +164,18 @@ func newInitCmd(deps initCommandDeps) *cobra.Command {
 				Project: config.ProjectConfig{
 					Name: filepath.Base(state.RootPath),
 				},
-				Install: config.InstallConfig{
-					Tools:    state.HasRokitConfig,
-					Packages: state.HasWallyConfig,
-				},
 				Tasks: map[string]config.TaskValue{
 					"dev":    config.NewTaskValue(fmt.Sprintf("rojo sourcemap %s --output sourcemap.json", rojoProjectPath), fmt.Sprintf("rojo serve %s", rojoProjectPath)),
 					"build":  config.NewTaskValue(fmt.Sprintf("rojo build %s --output build.rbxl", rojoProjectPath)),
 					"lint":   config.NewTaskValue("selene src"),
 					"format": config.NewTaskValue("stylua src"),
 					"test":   config.NewTaskValue("lune run test"),
+				},
+				Luu: config.LuuConfig{
+					Install: config.InstallConfig{
+						Tools:    state.HasRokitConfig,
+						Packages: state.HasWallyConfig,
+					},
 				},
 			}
 
@@ -239,9 +241,11 @@ func maybeCreateBasicConfig(cmd *cobra.Command, reader *bufio.Reader, state work
 		Project: config.ProjectConfig{
 			Name: filepath.Base(state.RootPath),
 		},
-		Install: config.InstallConfig{
-			Tools:    state.HasRokitConfig,
-			Packages: state.HasWallyConfig,
+		Luu: config.LuuConfig{
+			Install: config.InstallConfig{
+				Tools:    state.HasRokitConfig,
+				Packages: state.HasWallyConfig,
+			},
 		},
 	}
 	if err := writeConfig(state.LuumenConfigPath, cfg); err != nil {
@@ -249,10 +253,10 @@ func maybeCreateBasicConfig(cmd *cobra.Command, reader *bufio.Reader, state work
 	}
 
 	statusf(cmd, "Generated basic %s", workspace.LuumenConfigFile)
-	if cfg.Install.Tools || cfg.Install.Packages {
-		nextStepsf(cmd, "Basic setup complete", "luu install", "define tasks in project.config.luau", "luu doctor")
+	if cfg.Luu.Install.Tools || cfg.Luu.Install.Packages {
+		nextStepsf(cmd, "Basic setup complete", "luu install", "add tasks to .config.luau", "luu doctor")
 	} else {
-		nextStepsf(cmd, "Basic setup complete", "define tasks in project.config.luau", "luu doctor")
+		nextStepsf(cmd, "Basic setup complete", "add tasks to .config.luau", "luu doctor")
 	}
 	return true, nil
 }

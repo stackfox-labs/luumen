@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -95,6 +96,9 @@ func newInstallCmd(deps installCommandDeps) *cobra.Command {
 						Stderr:     stderr,
 						Stdin:      cmd.InOrStdin(),
 					}); err != nil {
+						if errors.Is(err, tasks.ErrTaskNotFound) {
+							return err
+						}
 						return fmt.Errorf("task %q failed: %w", "install", err)
 					}
 					statusf(cmd, "Task completed: install")

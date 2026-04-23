@@ -159,9 +159,11 @@ func scaffoldProjectFromTemplate(targetPath string, projectName string, template
 
 	cfg := &config.Config{
 		Project: config.ProjectConfig{Name: projectName},
-		Install: config.InstallConfig{
-			Tools:    template.Project.Install.Tools,
-			Packages: template.Project.Install.Packages,
+		Luu: config.LuuConfig{
+			Install: config.InstallConfig{
+				Tools:    template.Project.Install.Tools,
+				Packages: template.Project.Install.Packages,
+			},
 		},
 	}
 	if len(template.Project.Tasks) > 0 {

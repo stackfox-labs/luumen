@@ -1,6 +1,8 @@
 return {
     project = {
         name = "Luumen",
+        description = "The unified CLI for Luau development",
+        license = "MIT",
     },
 
     tasks = {
@@ -9,5 +11,5 @@ return {
         ["test"] = "go test -v ./...",
         ["docs:dev"] = "cd docs && npm run dev",
         ["docs:build"] = "cd docs && npm run build",
-    }
+    },
 }

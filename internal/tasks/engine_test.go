@@ -3,7 +3,6 @@ package tasks
 import (
 	"context"
 	"errors"
-	"fmt"
 	"reflect"
 	"strings"
 	"testing"
@@ -172,7 +171,7 @@ func TestRunNamedTaskMissingTask(t *testing.T) {
 	if !errors.Is(err, ErrTaskNotFound) {
 		t.Fatalf("expected ErrTaskNotFound, got: %v", err)
 	}
-	if !strings.Contains(err.Error(), fmt.Sprintf("%s", "lint")) {
+	if !strings.Contains(err.Error(), `task "lint" is not defined in tasks`) {
 		t.Fatalf("expected missing task name in error, got: %v", err)
 	}
 }

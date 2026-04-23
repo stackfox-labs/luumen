@@ -134,7 +134,7 @@ export const SECTIONS: CommandSection[] = [
     lines: [
       { text: "  [luu] Running health checks...", kind: "muted" },
       { text: "", kind: "blank" },
-      { text: "  pass: project.config.luau is valid. (luumen-config)", kind: "success" },
+      { text: "  pass: .config.luau is valid. (luumen-config)", kind: "success" },
       { text: "  pass: rokit.toml is valid. (rokit-config)", kind: "success" },
       { text: "  pass: rokit executable found in PATH. (rokit-binary)", kind: "success" },
       { text: "  warning: No Rojo project file (*.project.json) found. (rojo-config)", kind: "accent" },
@@ -177,11 +177,6 @@ export const CONFIG_SOURCE = `return {
     version = "0.1.0"
   },
 
-  install = {
-    tools = true,
-    packages = true
-  },
-
   tasks = {
     dev = "rojo serve default.project.json",
     lint = "selene src",
@@ -190,6 +185,13 @@ export const CONFIG_SOURCE = `return {
     check = {
       "luu lint",
       "luu format"
+    }
+  },
+
+  luu = {
+    install = {
+      tools = true,
+      packages = true
     }
   }
 }`

@@ -57,7 +57,7 @@ func (e *Engine) RunNamedTask(ctx context.Context, taskName string, cfg *config.
 		return errors.New("task name is required")
 	}
 	if len(cfg.Tasks) == 0 {
-		return fmt.Errorf("%w: %s", ErrTaskNotFound, taskName)
+		return missingTaskError(taskName)
 	}
 
 	return e.runTask(ctx, cfg, strings.TrimSpace(taskName), options, nil)
@@ -73,7 +73,7 @@ func (e *Engine) runTask(ctx context.Context, cfg *config.Config, taskName strin
 
 	taskValue, ok := cfg.Tasks[taskName]
 	if !ok {
-		return fmt.Errorf("%w: %s", ErrTaskNotFound, taskName)
+		return missingTaskError(taskName)
 	}
 
 	plan, err := NormalizeTaskValue(taskValue)
@@ -103,6 +103,10 @@ func (e *Engine) runTask(ctx context.Context, cfg *config.Config, taskName strin
 	}
 
 	return nil
+}
+
+func missingTaskError(taskName string) error {
+	return fmt.Errorf("%w: task %q is not defined in tasks\n[next] Add tasks.%s to .config.luau", ErrTaskNotFound, taskName, taskName)
 }
 
 func parseNestedRunCommand(command string, cliName string) (string, bool) {

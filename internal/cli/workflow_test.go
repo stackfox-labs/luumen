@@ -120,7 +120,7 @@ func TestLintRequiresConfiguredTask(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected lint task configuration error")
 	}
-	if !strings.Contains(err.Error(), "tasks.lint") {
+	if !strings.Contains(err.Error(), `task "lint" is not defined in tasks`) {
 		t.Fatalf("expected actionable lint configuration guidance, got: %v", err)
 	}
 }
@@ -137,12 +137,14 @@ return {
         license = "Apache-2.0",
     },
 
-    install = {
-        tools = "yes",
-    },
-
     tasks = {
         lint = "selene src",
+    },
+
+    luu = {
+        install = {
+            tools = "yes",
+        },
     },
 
     lute = {

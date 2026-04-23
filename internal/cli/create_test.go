@@ -49,8 +49,8 @@ func TestCreateFreshProject(t *testing.T) {
 	if cfg.Project.Name != "my-game" {
 		t.Fatalf("expected project name my-game, got %q", cfg.Project.Name)
 	}
-	if !cfg.Install.Tools || !cfg.Install.Packages {
-		t.Fatalf("expected install defaults enabled, got %+v", cfg.Install)
+	if !cfg.Luu.Install.Tools || !cfg.Luu.Install.Packages {
+		t.Fatalf("expected install defaults enabled, got %+v", cfg.Luu.Install)
 	}
 
 	rokitContents, readErr := os.ReadFile(filepath.Join(target, "rokit.toml"))

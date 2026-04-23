@@ -198,9 +198,9 @@ func resolveBuiltInTaskFallback(commandName string, state workspace.Workspace) (
 		}
 		return steps, nil
 	case "lint", "format", "test":
-		return nil, fmt.Errorf("task %q is not defined and Luumen has no default implementation. Next: define tasks.%s in %s", commandName, commandName, workspace.LuumenConfigFile)
+		return nil, missingWorkflowTaskError(commandName)
 	default:
-		return nil, fmt.Errorf("task %q is not defined and Luumen has no default implementation. Next: define tasks.%s in %s", commandName, commandName, workspace.LuumenConfigFile)
+		return nil, missingWorkflowTaskError(commandName)
 	}
 }
 
@@ -263,4 +263,8 @@ func resolveDefaultRojoProjectPathForPlan(state workspace.Workspace) (string, bo
 
 func missingDefaultRojoProjectError(commandName string, state workspace.Workspace) error {
 	return fmt.Errorf("no Rojo project file (*.project.json) was found in %s, so the default %q task cannot run. Next: add default.project.json or define tasks.%s in %s", state.RootPath, commandName, commandName, workspace.LuumenConfigFile)
+}
+
+func missingWorkflowTaskError(taskName string) error {
+	return fmt.Errorf("task %q is not defined in tasks\n[next] Add tasks.%s to %s", taskName, taskName, workspace.LuumenConfigFile)
 }

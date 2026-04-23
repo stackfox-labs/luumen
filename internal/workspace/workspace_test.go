@@ -95,6 +95,22 @@ func TestDetectLuumenManaged(t *testing.T) {
 	}
 }
 
+func TestDetectIgnoresLegacyProjectConfigFile(t *testing.T) {
+	t.Parallel()
+
+	root := t.TempDir()
+	mustWriteFile(t, filepath.Join(root, "project.config.luau"))
+
+	state, err := Detect(root)
+	if err != nil {
+		t.Fatalf("expected detection success, got: %v", err)
+	}
+
+	if state.HasLuumenConfig {
+		t.Fatalf("expected legacy config filename to be ignored, got %#v", state)
+	}
+}
+
 func mustWriteFile(t *testing.T, path string) {
 	t.Helper()
 

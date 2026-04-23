@@ -62,10 +62,10 @@ export function ConfigShowcase() {
     <section className="border-t border-b border-[#ebebeb]">
       <div className="grid grid-cols-1 md:grid-cols-2">
         <div className="px-16 py-36 md:border-r border-b md:border-b-0 border-[#ebebeb]">
-          <p className="text-[10px] font-mono text-[#bbb] uppercase tracking-[0.15em] mb-6">PROJECT.CONFIG.LUAU</p>
+          <p className="text-[10px] font-mono text-[#bbb] uppercase tracking-[0.15em] mb-6">.CONFIG.LUAU</p>
           <h2 className="font-display text-[44px] font-bold text-[#0a0a0a] leading-tight mb-7">A new standard for configuring Luau projects</h2>
           <p className="text-[#666] text-[18px] leading-relaxed mb-4">
-            <code className="font-mono text-[13px] bg-[#f4f4f4] border border-[#e5e5e5] text-[#333] px-1.5 py-0.5 rounded">project.config.luau</code>{" "}
+            <code className="font-mono text-[13px] bg-[#f4f4f4] border border-[#e5e5e5] text-[#333] px-1.5 py-0.5 rounded">.config.luau</code>{" "}
             is a shared Luau-native project config designed for tools across the ecosystem.
           </p>
           <p className="text-[#666] text-[17px] leading-relaxed mb-10">
@@ -73,7 +73,7 @@ export function ConfigShowcase() {
           </p>
           <ul className="space-y-5">
             {[
-              "One file for commands, tasks, and project-level tooling",
+              "One file for project info, tasks, and tool settings",
               "Written in Luau tables — native to the ecosystem",
               "Extensible by multiple tools, not just Luumen",
               "Designed to keep project configuration in one place",
@@ -87,7 +87,7 @@ export function ConfigShowcase() {
         </div>
 
         <div className="px-16 py-36 flex items-center">
-          <TerminalWindow title="project.config.luau" className="w-full">
+          <TerminalWindow title=".config.luau" className="w-full">
             <div className="px-6 py-5 font-mono text-[15px]">
               {CONFIG_SOURCE.split("\n").map((line, i) => (
                 <ConfigLine key={i} line={line} />
@@ -111,10 +111,10 @@ export function ConfigShowcase() {
         <div className="px-16 py-16">
           <h3 className="font-display text-[22px] font-bold text-[#0a0a0a] mb-4">Built for the ecosystem</h3>
           <p className="text-[#666] text-[17px] leading-relaxed mb-4">
-            Luumen reads <code className="font-mono text-[13px] bg-[#f4f4f4] border border-[#e5e5e5] text-[#333] px-1.5 py-0.5 rounded">project.config.luau</code>, but the format is not meant to be Luumen-only.
+            Luumen uses <code className="font-mono text-[13px] bg-[#f4f4f4] border border-[#e5e5e5] text-[#333] px-1.5 py-0.5 rounded">.config.luau</code> for project info, tasks, and install settings.
           </p>
           <p className="text-[#666] text-[17px] leading-relaxed">
-            Other tools — for example Selene or future Luau tooling — can adopt the same file and keep project configuration in one place instead of scattering it across separate configs.
+            Other tools — for example Lute or future Luau tooling — can adopt the same file and keep project configuration in one place instead of scattering it across separate configs.
           </p>
         </div>
       </div>

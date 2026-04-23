@@ -111,20 +111,15 @@ luu add pkg:sleitnick/knit
 Luumen uses a shared Luau config file:
 
 ```text
-project.config.luau
+.config.luau
 ```
 
-Instead of spreading configuration across multiple formats, `project.config.luau` provides a single place to describe how your project runs.
+Use `.config.luau` for project info, tasks, and tool settings in one place.
 
 ```lua
 return {
     project = {
         name = "my-game",
-    },
-
-    install = {
-        tools = true,
-        packages = true,
     },
 
     tasks = {
@@ -142,12 +137,19 @@ return {
             "luu test",
         },
     },
+
+    luu = {
+        install = {
+            tools = true,
+            packages = true,
+        },
+    },
+
+    luau = {
+        languagemode = "strict",
+    },
 }
 ```
-
-`project.config.luau` is designed as a shared standard for the Luau ecosystem.
-
-Luumen reads from it, but other tools can adopt the same file and extend it with their own sections, allowing project configuration to live in one place instead of being split across multiple configs.
 
 Tool-specific files such as `rokit.toml`, `wally.toml`, and Rojo project files are still used by their respective tools.
 

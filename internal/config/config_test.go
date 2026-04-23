@@ -18,19 +18,7 @@ return {
         version = "0.1.0",
         author = "Omouta",
         description = "Example project",
-    },
-
-    install = {
-        tools = true,
-        packages = true,
-    },
-
-    tools = {
-        rojo = "rojo-rbx/rojo@7.6.1",
-    },
-
-    packages = {
-        roact = "roblox/roact@1.4.4",
+        license = "MIT",
     },
 
     tasks = {
@@ -45,6 +33,21 @@ return {
             "luu build",
         },
     },
+
+    luu = {
+        install = {
+            tools = true,
+            packages = true,
+            frozen = true,
+        },
+        cache = {
+            enabled = true,
+        },
+    },
+
+    lute = {
+        entrypoint = "src/init.luau",
+    },
 }
 `)
 
@@ -56,14 +59,8 @@ return {
 	if cfg.Project.Name != "my-game" || cfg.Project.Version != "0.1.0" || cfg.Project.Author != "Omouta" || cfg.Project.Description != "Example project" {
 		t.Fatalf("expected project metadata to load, got %+v", cfg.Project)
 	}
-	if !cfg.Install.Tools || !cfg.Install.Packages {
-		t.Fatalf("expected install flags to load, got %+v", cfg.Install)
-	}
-	if cfg.Tools["rojo"] != "rojo-rbx/rojo@7.6.1" {
-		t.Fatalf("expected tools.rojo to load, got %+v", cfg.Tools)
-	}
-	if cfg.Packages["roact"] != "roblox/roact@1.4.4" {
-		t.Fatalf("expected packages.roact to load, got %+v", cfg.Packages)
+	if !cfg.Luu.Install.Tools || !cfg.Luu.Install.Packages {
+		t.Fatalf("expected luu.install flags to load, got %+v", cfg.Luu.Install)
 	}
 
 	serve := cfg.Tasks["serve"].Steps
@@ -135,6 +132,23 @@ func TestLoadMissingConfig(t *testing.T) {
 	}
 }
 
+func TestLoadFromDirUsesDotConfigLuau(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "project.config.luau"), []byte("return {\n}\n"), 0o644); err != nil {
+		t.Fatalf("failed to write legacy config file: %v", err)
+	}
+
+	_, err := LoadFromDir(dir)
+	if err == nil {
+		t.Fatal("expected missing .config.luau error")
+	}
+	if !errors.Is(err, ErrConfigNotFound) {
+		t.Fatalf("expected ErrConfigNotFound when only legacy file exists, got %v", err)
+	}
+}
+
 func TestLoadAllowsUnknownTopLevelSection(t *testing.T) {
 	t.Parallel()
 
@@ -185,25 +199,61 @@ return {
 	}
 }
 
-func TestLoadAllowsUnknownInstallFields(t *testing.T) {
+func TestLoadAllowsUnknownLuuFields(t *testing.T) {
 	t.Parallel()
 
 	path := writeConfigFile(t, `
 return {
-    install = {
-        tools = true,
-        packages = true,
-        frozen = true,
+    tasks = {
+        format = "stylua src",
+    },
+
+    luu = {
+        install = {
+            tools = true,
+            packages = true,
+            frozen = true,
+        },
+        cache = {
+            enabled = true,
+        },
     },
 }
 `)
 
 	cfg, err := Load(path)
 	if err != nil {
-		t.Fatalf("expected install extras to be ignored, got: %v", err)
+		t.Fatalf("expected luu extras to be ignored, got: %v", err)
 	}
-	if !cfg.Install.Tools || !cfg.Install.Packages {
-		t.Fatalf("expected supported install fields to load, got %+v", cfg.Install)
+	if !cfg.Luu.Install.Tools || !cfg.Luu.Install.Packages {
+		t.Fatalf("expected supported luu.install fields to load, got %+v", cfg.Luu.Install)
+	}
+	if got := cfg.Tasks["format"].Steps; len(got) != 1 || got[0] != "stylua src" {
+		t.Fatalf("expected format task to load, got %#v", got)
+	}
+}
+
+func TestLoadAllowsMissingLuuSection(t *testing.T) {
+	t.Parallel()
+
+	path := writeConfigFile(t, `
+return {
+    project = {
+        name = "example-project",
+    },
+
+    tasks = {
+        lint = "selene src",
+    },
+}
+`)
+
+	cfg, err := Load(path)
+	if err != nil {
+		t.Fatalf("expected config without luu to load, got %v", err)
+	}
+	if got := cfg.Tasks["lint"].Steps; len(got) != 1 || got[0] != "selene src" {
+		t.Fatalf("expected tasks to load without luu, got %#v", got)
 	}
 }
 
@@ -264,12 +314,17 @@ func TestLoadTasksIgnoresInvalidUnrelatedSections(t *testing.T) {
 
 	path := writeConfigFile(t, `
 return {
-    install = {
-        tools = "yes",
-    },
-
     tasks = {
         format = "tool format-check src",
+    },
+
+    luu = {
+        install = {
+            tools = "yes",
+        },
+        cache = {
+            enabled = true,
+        },
     },
 
     lute = {
@@ -335,9 +390,7 @@ return {
 	}
 
 	cfg.Project.Description = "Round trip test"
-	cfg.Tools = map[string]string{
-		"rojo": "rojo-rbx/rojo@7.6.1",
-	}
+	cfg.Luu.Install = InstallConfig{Tools: true, Packages: true}
 	cfg.Tasks["lint"] = NewTaskValue("selene src")
 	cfg.Tasks["build"] = NewTaskValue("rojo build -o build.rbxl")
 
@@ -353,8 +406,8 @@ return {
 	if reloaded.Project.Description != "Round trip test" {
 		t.Fatalf("expected description to persist, got %+v", reloaded.Project)
 	}
-	if reloaded.Tools["rojo"] != "rojo-rbx/rojo@7.6.1" {
-		t.Fatalf("expected tools to persist, got %+v", reloaded.Tools)
+	if !reloaded.Luu.Install.Tools || !reloaded.Luu.Install.Packages {
+		t.Fatalf("expected luu.install to persist, got %+v", reloaded.Luu.Install)
 	}
 	if reloaded.Tasks["lint"].Steps[0] != "selene src" {
 		t.Fatalf("expected lint task to persist, got %#v", reloaded.Tasks["lint"].Steps)

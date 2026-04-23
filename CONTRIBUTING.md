@@ -113,7 +113,7 @@ Use clear, descriptive commit messages that explain intent.
 Examples:
 
 - cli: improve add command tool resolution errors
-- config: validate project.config.luau task entries
+- config: validate .config.luau task entries
 - docs: fix installation instructions
 
 ## Release notes

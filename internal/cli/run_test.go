@@ -112,12 +112,14 @@ func TestRunCommandUsesTaskScopedConfigLoading(t *testing.T) {
 	configPath := filepath.Join(root, workspace.LuumenConfigFile)
 	if err := os.WriteFile(configPath, []byte(strings.TrimSpace(`
 return {
-    install = {
-        tools = "yes",
-    },
-
     tasks = {
         verify = "tool check src",
+    },
+
+    luu = {
+        install = {
+            tools = "yes",
+        },
     },
 
     lute = {

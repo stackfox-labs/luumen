@@ -15,16 +15,18 @@ import (
 	"github.com/Wh1teSlash/luau-parser/parser"
 )
 
-const FileName = "project.config.luau"
+const FileName = ".config.luau"
 
-var ErrConfigNotFound = errors.New("project.config.luau not found")
+var ErrConfigNotFound = errors.New(".config.luau not found")
 
 type Config struct {
-	Project  ProjectConfig
-	Install  InstallConfig
-	Tools    map[string]string
-	Packages map[string]string
-	Tasks    map[string]TaskValue
+	Project ProjectConfig
+	Tasks   map[string]TaskValue
+	Luu     LuuConfig
+}
+
+type LuuConfig struct {
+	Install InstallConfig
 }
 
 type ProjectConfig struct {
@@ -65,19 +67,15 @@ type dataObject map[string]dataValue
 type dataArray []dataValue
 
 type LoadOptions struct {
-	Project  bool
-	Install  bool
-	Tools    bool
-	Packages bool
-	Tasks    bool
+	Project    bool
+	Tasks      bool
+	LuuInstall bool
 }
 
 var FullLoadOptions = LoadOptions{
-	Project:  true,
-	Install:  true,
-	Tools:    true,
-	Packages: true,
-	Tasks:    true,
+	Project:    true,
+	Tasks:      true,
+	LuuInstall: true,
 }
 
 var TaskLoadOptions = LoadOptions{
@@ -354,36 +352,42 @@ func fromDataObject(root dataObject, options LoadOptions) (*Config, error) {
 		cfg.Project = project
 	}
 
-	if options.Install {
-		install, err := parseInstallSection(root["install"])
-		if err != nil {
-			return nil, err
-		}
-		cfg.Install = install
-	}
-
-	if options.Tools {
-		tools, err := parseStringMapSection("tools", root["tools"])
-		if err != nil {
-			return nil, err
-		}
-		cfg.Tools = tools
-	}
-
-	if options.Packages {
-		packages, err := parseStringMapSection("packages", root["packages"])
-		if err != nil {
-			return nil, err
-		}
-		cfg.Packages = packages
-	}
-
 	if options.Tasks {
 		tasks, err := parseTaskMapSection("tasks", root["tasks"])
 		if err != nil {
 			return nil, err
 		}
 		cfg.Tasks = tasks
+	}
+
+	if options.LuuInstall {
+		luu, err := parseLuuSection(root["luu"], options)
+		if err != nil {
+			return nil, err
+		}
+		cfg.Luu = luu
+	}
+
+	return cfg, nil
+}
+
+func parseLuuSection(value dataValue, options LoadOptions) (LuuConfig, error) {
+	if value == nil {
+		return LuuConfig{}, nil
+	}
+
+	object, ok := value.(dataObject)
+	if !ok {
+		return LuuConfig{}, errors.New("luu must be a table")
+	}
+
+	cfg := LuuConfig{}
+	if options.LuuInstall {
+		install, err := parseInstallSection("luu.install", object["install"])
+		if err != nil {
+			return LuuConfig{}, err
+		}
+		cfg.Install = install
 	}
 
 	return cfg, nil
@@ -434,27 +438,27 @@ func parseProjectSection(value dataValue) (ProjectConfig, error) {
 	return cfg, nil
 }
 
-func parseInstallSection(value dataValue) (InstallConfig, error) {
+func parseInstallSection(scope string, value dataValue) (InstallConfig, error) {
 	if value == nil {
 		return InstallConfig{}, nil
 	}
 
 	object, ok := value.(dataObject)
 	if !ok {
-		return InstallConfig{}, errors.New("install must be a table")
+		return InstallConfig{}, fmt.Errorf("%s must be a table", scope)
 	}
 
 	cfg := InstallConfig{}
 	for _, key := range sortedObjectKeys(object) {
 		switch key {
 		case "tools":
-			booleanValue, err := requireBool("install."+key, object[key])
+			booleanValue, err := requireBool(scope+"."+key, object[key])
 			if err != nil {
 				return InstallConfig{}, err
 			}
 			cfg.Tools = booleanValue
 		case "packages":
-			booleanValue, err := requireBool("install."+key, object[key])
+			booleanValue, err := requireBool(scope+"."+key, object[key])
 			if err != nil {
 				return InstallConfig{}, err
 			}
@@ -465,31 +469,6 @@ func parseInstallSection(value dataValue) (InstallConfig, error) {
 	}
 
 	return cfg, nil
-}
-
-func parseStringMapSection(scope string, value dataValue) (map[string]string, error) {
-	if value == nil {
-		return nil, nil
-	}
-
-	object, ok := value.(dataObject)
-	if !ok {
-		return nil, fmt.Errorf("%s must be a table", scope)
-	}
-	if len(object) == 0 {
-		return nil, nil
-	}
-
-	normalized := make(map[string]string, len(object))
-	for _, key := range sortedObjectKeys(object) {
-		stringValue, err := requireString(scope+"."+key, object[key])
-		if err != nil {
-			return nil, err
-		}
-		normalized[key] = stringValue
-	}
-
-	return normalized, nil
 }
 
 func parseTaskMapSection(scope string, value dataValue) (map[string]TaskValue, error) {
@@ -600,24 +579,20 @@ type objectEntry struct {
 }
 
 func encode(cfg *Config) (string, error) {
-	topLevel := make([]objectEntry, 0, 5)
+	topLevel := make([]objectEntry, 0, 3)
 
 	if project := encodeProject(cfg.Project); len(project) > 0 {
 		topLevel = append(topLevel, objectEntry{key: "project", value: project})
-	}
-	if install := encodeInstall(cfg.Install); len(install) > 0 {
-		topLevel = append(topLevel, objectEntry{key: "install", value: install})
-	}
-	if tools := encodeStringMap(cfg.Tools); len(tools) > 0 {
-		topLevel = append(topLevel, objectEntry{key: "tools", value: tools})
-	}
-	if packages := encodeStringMap(cfg.Packages); len(packages) > 0 {
-		topLevel = append(topLevel, objectEntry{key: "packages", value: packages})
 	}
 	if tasks, err := encodeTaskMap("tasks", cfg.Tasks); err != nil {
 		return "", err
 	} else if len(tasks) > 0 {
 		topLevel = append(topLevel, objectEntry{key: "tasks", value: tasks})
+	}
+	if luu, err := encodeLuu(cfg.Luu); err != nil {
+		return "", err
+	} else if len(luu) > 0 {
+		topLevel = append(topLevel, objectEntry{key: "luu", value: luu})
 	}
 
 	var builder strings.Builder
@@ -625,6 +600,16 @@ func encode(cfg *Config) (string, error) {
 	writeObject(&builder, topLevel, 0)
 	builder.WriteString("\n")
 	return builder.String(), nil
+}
+
+func encodeLuu(luu LuuConfig) ([]objectEntry, error) {
+	entries := make([]objectEntry, 0, 1)
+
+	if install := encodeInstall(luu.Install); len(install) > 0 {
+		entries = append(entries, objectEntry{key: "install", value: install})
+	}
+
+	return entries, nil
 }
 
 func encodeProject(project ProjectConfig) []objectEntry {
@@ -651,24 +636,6 @@ func encodeInstall(install InstallConfig) []objectEntry {
 	}
 	if install.Packages {
 		entries = append(entries, objectEntry{key: "packages", value: true})
-	}
-	return entries
-}
-
-func encodeStringMap(values map[string]string) []objectEntry {
-	if len(values) == 0 {
-		return nil
-	}
-
-	keys := make([]string, 0, len(values))
-	for key := range values {
-		keys = append(keys, key)
-	}
-	sort.Strings(keys)
-
-	entries := make([]objectEntry, 0, len(keys))
-	for _, key := range keys {
-		entries = append(entries, objectEntry{key: key, value: values[key]})
 	}
 	return entries
 }

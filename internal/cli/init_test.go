@@ -79,8 +79,8 @@ func TestInitAdoptionRokitWallyRojo(t *testing.T) {
 	if writer.cfg.Project.Name != filepath.Base(root) {
 		t.Fatalf("expected project name %q, got %q", filepath.Base(root), writer.cfg.Project.Name)
 	}
-	if !writer.cfg.Install.Tools || !writer.cfg.Install.Packages {
-		t.Fatalf("expected both install categories true, got %+v", writer.cfg.Install)
+	if !writer.cfg.Luu.Install.Tools || !writer.cfg.Luu.Install.Packages {
+		t.Fatalf("expected both install categories true, got %+v", writer.cfg.Luu.Install)
 	}
 
 	assertTask(t, writer.cfg, "dev", []string{"rojo sourcemap default.project.json --output sourcemap.json", "rojo serve default.project.json"})
@@ -116,8 +116,8 @@ func TestInitAdoptionPartialSetup(t *testing.T) {
 	if writer.calls != 1 {
 		t.Fatalf("expected one config write, got %d", writer.calls)
 	}
-	if !writer.cfg.Install.Tools || writer.cfg.Install.Packages {
-		t.Fatalf("expected tools-only install settings, got %+v", writer.cfg.Install)
+	if !writer.cfg.Luu.Install.Tools || writer.cfg.Luu.Install.Packages {
+		t.Fatalf("expected tools-only install settings, got %+v", writer.cfg.Luu.Install)
 	}
 	assertTask(t, writer.cfg, "dev", []string{"rojo sourcemap games/default.project.json --output sourcemap.json", "rojo serve games/default.project.json"})
 }
@@ -182,8 +182,8 @@ func TestInitFallsBackToBasicConfigWhenRojoInfoMissing(t *testing.T) {
 	if writer.cfg == nil {
 		t.Fatal("expected basic config to be written")
 	}
-	if !writer.cfg.Install.Tools || !writer.cfg.Install.Packages {
-		t.Fatalf("expected install settings to mirror detected repo config, got %+v", writer.cfg.Install)
+	if !writer.cfg.Luu.Install.Tools || !writer.cfg.Luu.Install.Packages {
+		t.Fatalf("expected install settings to mirror detected repo config, got %+v", writer.cfg.Luu.Install)
 	}
 	if len(writer.cfg.Tasks) != 0 {
 		t.Fatalf("expected basic config without generated tasks, got %+v", writer.cfg.Tasks)
@@ -321,8 +321,8 @@ func TestInitCreateInPlaceNonEmptyDirectoryOffersBasicConfig(t *testing.T) {
 	if writer.cfg.Project.Name != filepath.Base(repo) {
 		t.Fatalf("expected basic config project name %q, got %q", filepath.Base(repo), writer.cfg.Project.Name)
 	}
-	if writer.cfg.Install.Tools || writer.cfg.Install.Packages {
-		t.Fatalf("expected empty install settings for plain fallback, got %+v", writer.cfg.Install)
+	if writer.cfg.Luu.Install.Tools || writer.cfg.Luu.Install.Packages {
+		t.Fatalf("expected empty install settings for plain fallback, got %+v", writer.cfg.Luu.Install)
 	}
 	if len(writer.cfg.Tasks) != 0 {
 		t.Fatalf("expected no generated tasks for basic config, got %+v", writer.cfg.Tasks)

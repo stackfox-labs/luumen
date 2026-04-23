@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"github.com/spf13/cobra"
@@ -40,7 +41,7 @@ func newRunCmd(deps runCommandDeps) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "run <task>",
 		Short: "Run a named Luumen task",
-		Long:  "Run executes a task from tasks in project.config.luau. Task values can be a string or an array of strings.",
+		Long:  "Run executes a task from tasks in .config.luau. Task values can be a string or an array of strings.",
 		Example: "luu run test\n" +
 			"luu run ci --quiet",
 		Args: requireExactlyOneArg("task"),
@@ -52,7 +53,7 @@ func newRunCmd(deps runCommandDeps) *cobra.Command {
 				return fmt.Errorf("failed to detect workspace: %w. Next: run the command from a repository directory", err)
 			}
 			if !state.HasLuumenConfig {
-				return fmt.Errorf("cannot run task: %s was not found in %s. Next: create project.config.luau or run luu init", workspace.LuumenConfigFile, state.RootPath)
+				return fmt.Errorf("cannot run task: %s was not found in %s. Next: create %s or run luu init", workspace.LuumenConfigFile, state.RootPath, workspace.LuumenConfigFile)
 			}
 
 			cfg, err := deps.loadConfig(state.LuumenConfigPath)
@@ -73,6 +74,9 @@ func newRunCmd(deps runCommandDeps) *cobra.Command {
 				Stderr:     stderr,
 				Stdin:      cmd.InOrStdin(),
 			}); err != nil {
+				if errors.Is(err, tasks.ErrTaskNotFound) {
+					return err
+				}
 				return fmt.Errorf("failed to run task %q: %w", args[0], err)
 			}
 

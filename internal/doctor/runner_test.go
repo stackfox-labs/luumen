@@ -38,6 +38,16 @@ func TestRunnerHealthyRepo(t *testing.T) {
 	if report.Passes == 0 {
 		t.Fatal("expected pass results for healthy report")
 	}
+	found := false
+	for _, result := range report.Results {
+		if result.ID == "luumen-config" && strings.Contains(result.Message, ".config.luau is valid.") {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected doctor to report .config.luau, got %#v", report.Results)
+	}
 }
 
 func TestRunnerMalformedConfigsAndRojo(t *testing.T) {

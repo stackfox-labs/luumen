@@ -8,7 +8,7 @@ import (
 )
 
 const (
-	LuumenConfigFile = "project.config.luau"
+	LuumenConfigFile = ".config.luau"
 	RokitConfigFile  = "rokit.toml"
 	WallyConfigFile  = "wally.toml"
 )
