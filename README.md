@@ -153,10 +153,6 @@ return {
 
 Tool-specific files such as `rokit.toml`, `wally.toml`, and Rojo project files are still used by their respective tools.
 
-## Status
-
-Luumen is currently in version 0.1.0.
-
 ## License
 
 MIT License. See [LICENSE](LICENSE).
